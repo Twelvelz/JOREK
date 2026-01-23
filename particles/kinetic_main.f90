@@ -48,7 +48,7 @@ use phys_module, only: tstep,tstep_n,restart_particles, restart, t_start, nout
 use phys_module, only: CENTRAL_MASS, CENTRAL_DENSITY, xcase, xpoint
 use phys_module, only: n_part_groups, n_aux_var, n_valves_max
 use phys_module, only: nstep_particles, nsubstep_particles, tstep_particles, nout_particles
-use phys_module, only: deuterium_adas,sqrt_mu0_over_rho0
+use phys_module, only: deuterium_adas,sqrt_mu0_over_rho0, adas_dir
 use phys_module, only: filter_perp, filter_hyper, filter_par, filter_perp_n0, filter_hyper_n0, filter_par_n0
 use phys_module, only: apply_dirichlet_proj, part_group_configs, init_particles_only
 use phys_module, only: use_manual_random_seed, manual_seed
@@ -145,7 +145,7 @@ endif ! (restart_particles)
 
 
 ! Read Open ADAS data for plasma fluid
-if (deuterium_adas .and. use_kin_recomb_global) ad_deuterium =  read_adf11(sim%my_id,'96_h') !< move to core (jorek2_main for particles)
+if (deuterium_adas .and. use_kin_recomb_global) ad_deuterium =  read_adf11(sim%my_id,'12_h', directory=adas_dir) !< move to core (jorek2_main for particles)
 
 ! --- Setting up random numbers for ionisation probability
 seed = random_seed()
@@ -214,7 +214,7 @@ neutral_collisions = neutral_collisions_from_config(sim)
 jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
                                 filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0=filter_par_n0,            &
                                 filter = filter_perp, filter_hyper = filter_hyper, filter_parallel=filter_par, fractional_digits = 9,       &
-                                do_zonal = .false., calc_integrals=.false., to_vtk=.false., to_h5 = .false., basename='projections', nsub=2, &
+                                do_zonal = .false., calc_integrals=.false., to_vtk=.true., to_h5 = .false., basename='projections', nsub=2, &
                                 do_dirichlet=apply_dirichlet_proj)
 aux_node_list => jorek_feedback%node_list
 

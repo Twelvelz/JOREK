@@ -846,6 +846,8 @@ if (my_id .eq. 0) then
   call MPI_PACK(use_ics,                1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(use_rep,                1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(use_kin_recomb_global,   1,MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(find_RZ_nearby_iter,    1,MPI_INTEGER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(find_RZ_nearby_tol,     1,MPI_REAL8  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 
   ! puffing parameters
   call MPI_PACK(valves%type,            n_valves_max*4,  MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -881,6 +883,7 @@ if (my_id .eq. 0) then
   call MPI_PACK(part_group_configs%init_function,             n_part_groups_max*50, MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(part_group_configs%init_pdf,                  n_part_groups_max*50, MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(part_group_configs%id,                        n_part_groups_max*3,  MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
+  call MPI_PACK(part_group_configs%do_conservation_checks,    n_part_groups_max,    MPI_LOGICAL  ,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
 
   call MPI_PACK(part_group_configs%atom_data_suffix,           n_part_groups_max*8, MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   call MPI_PACK(part_group_configs%use_kin_ionisation,         n_part_groups_max,     MPI_LOGICAL,buffer,bufsize,position,MPI_COMM_WORLD,ierr)
@@ -935,6 +938,7 @@ if (my_id .eq. 0) then
       
       call MPI_PACK(part_group_configs(i)%wall_act_configs(j)%write_vtk,            1,MPI_LOGICAL,  buffer,bufsize,position,MPI_COMM_WORLD,ierr)
     enddo
+    call MPI_PACK(part_group_configs(i)%wall_act_each_nstep_part,                1,   MPI_INTEGER, buffer,bufsize,position,MPI_COMM_WORLD,ierr)
   enddo
 
   call MPI_PACK(part_groups_in_use,                         n_part_groups_max*3,  MPI_CHARACTER,buffer,bufsize,position,MPI_COMM_WORLD,ierr)  
@@ -1820,6 +1824,8 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,use_ics,                1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,use_rep,                1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,use_kin_recomb_global,   1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,find_RZ_nearby_iter,    1,MPI_INTEGER,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,find_RZ_nearby_tol,     1,MPI_REAL8  ,MPI_COMM_WORLD,ierr)
   
   ! puffing parameters
   call MPI_UNPACK(buffer,bufsize,position,valves%type,            n_valves_max*4, MPI_CHARACTER,MPI_COMM_WORLD,ierr)
@@ -1855,6 +1861,7 @@ if (my_id .ne. 0) then
   call MPI_UNPACK(buffer,bufsize,position,part_group_configs%init_function,             n_part_groups_max*50,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,part_group_configs%init_pdf,                  n_part_groups_max*50,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,part_group_configs%id,                        n_part_groups_max*3, MPI_CHARACTER,MPI_COMM_WORLD,ierr)
+  call MPI_UNPACK(buffer,bufsize,position,part_group_configs%do_conservation_checks,    n_part_groups_max,   MPI_LOGICAL,  MPI_COMM_WORLD,ierr)
   
   call MPI_UNPACK(buffer,bufsize,position,part_group_configs%atom_data_suffix,           n_part_groups_max*8,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
   call MPI_UNPACK(buffer,bufsize,position,part_group_configs%use_kin_ionisation,         n_part_groups_max,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
@@ -1909,6 +1916,7 @@ if (my_id .ne. 0) then
 
       call MPI_UNPACK(buffer,bufsize,position,part_group_configs(i)%wall_act_configs(j)%write_vtk,            1,MPI_LOGICAL,  MPI_COMM_WORLD,ierr)
     enddo
+    call MPI_UNPACK(buffer,bufsize,position,part_group_configs(i)%wall_act_each_nstep_part,                1,   MPI_INTEGER,MPI_COMM_WORLD,ierr)
   enddo
 
   call MPI_UNPACK(buffer,bufsize,position,part_groups_in_use,                                n_part_groups_max*3, MPI_CHARACTER,MPI_COMM_WORLD,ierr)

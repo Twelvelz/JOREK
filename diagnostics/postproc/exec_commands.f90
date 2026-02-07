@@ -203,7 +203,7 @@ module exec_commands
           call init_imp_adas(0)
 #endif
 #if (!defined WITH_Impurities)
-        if (deuterium_adas)  ad_deuterium =  read_adf11(0,'96_h') ! For radiation terms
+        if (deuterium_adas)  ad_deuterium =  read_adf11(0,'12_h', directory=adas_dir) ! For radiation terms
 #endif
         case ( 'params' )
           call log_parameters(0, .false.)

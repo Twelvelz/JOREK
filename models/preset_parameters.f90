@@ -943,6 +943,13 @@ do i=1, n_part_groups_max
     part_group_configs(i)%wall_act_configs(j)%supers_ratio_wall  = -1.d0   
     !< if none of these three above options are set, the supers_ratio_wall method
     !< will be used, with its default value being set by supers_ratio_wall_default in mod_particle_wall_interaction.f90
+
+    part_group_configs(i)%wall_act_configs(j)%use_physical_sputter  = .false.
+    part_group_configs(i)%wall_act_configs(j)%use_chemical_sputter  = .false.
+    part_group_configs(i)%wall_act_configs(j)%use_thompson          = .false.
+    part_group_configs(i)%wall_act_configs(j)%use_Yn_func           = .false.
+
+    part_group_configs(i)%wall_act_configs(j)%write_vtk             = .false.
   enddo
 enddo
 
@@ -969,6 +976,13 @@ do i=1, n_fluid_groups_max
     fluid_configs(i)%wall_act_configs(j)%supers_num_wall    = -1
     fluid_configs(i)%wall_act_configs(j)%supers_weight_wall = -1.d0
     fluid_configs(i)%wall_act_configs(j)%supers_ratio_wall  = -1.d0
+
+    fluid_configs(i)%wall_act_configs(j)%use_physical_sputter  = .false.
+    fluid_configs(i)%wall_act_configs(j)%use_chemical_sputter  = .false.
+    fluid_configs(i)%wall_act_configs(j)%use_thompson          = .false.
+    fluid_configs(i)%wall_act_configs(j)%use_Yn_func           = .false.
+
+    fluid_configs(i)%wall_act_configs(j)%write_vtk             = .false.
   enddo
 enddo
 !-----------------------------------------------

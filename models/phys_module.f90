@@ -1025,6 +1025,13 @@ module phys_module
     real*8            :: supers_ratio_wall  !< fraction of the total number of superparticles allocated for this group (i.e. part_group_configs(i)%n_particles) to use for each puff action
     !< if none of these three above options are set, the supers_ratio_wall method
     !< will be used, with its default value being set by supers_ratio_wall_default in mod_particle_wall_interaction.f90
+
+    logical           :: use_physical_sputter
+    logical           :: use_chemical_sputter
+    logical           :: use_thompson
+    logical           :: use_Yn_func
+
+    logical           :: write_vtk
   end type type_wall_act_config
   
   ! ------------------------------------------------

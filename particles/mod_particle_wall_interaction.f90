@@ -937,7 +937,7 @@ subroutine do_wall_act_group(this, sim, post_evolution)
       n_supers_tot = this%create_scheme%supers_to_create(sim%my_id,total_yield)
   
       if(sim%my_id == 0) then
-        write(*,"(A50,' = ',es16.6)") "total sputter yield for this wall_act_group       ",total_yield
+        write(*,"(A50,' = ',3es16.6)") "total sputter yield for this wall_act_group       ",total_yield, physical_yield, chemical_yield
         if (trim(this%create_scheme%scheme) == "num") write(*,"(A50,' = ',I12)") "supers_num                                        ", this%create_scheme%supers_num
         if (trim(this%create_scheme%scheme) == "weight") write(*,"(A50,' = ',es16.6)") "supers_weight                                     ", this%create_scheme%supers_weight
         if (trim(this%create_scheme%scheme) == "ratio") write(*,"(A50,' = ',es16.6)") "supers_ratio                                      ", this%create_scheme%supers_ratio
@@ -1561,8 +1561,8 @@ subroutine calc_fluid_yield(this,sim)
 
   ! determine integral over the domain
   call integrate_edge_elements(this%fluid_yield_integral, 1, this%domain_integral, this%res)
-  call integrate_edge_elements(this%fluid_yield_integral, 8, this%domain_integral_physical, this%res)
-  call integrate_edge_elements(this%fluid_yield_integral, 9, this%domain_integral_chemical, this%res)
+  call integrate_edge_elements(this%fluid_yield_integral, 12, this%domain_integral_physical, this%res)
+  call integrate_edge_elements(this%fluid_yield_integral, 13, this%domain_integral_chemical, this%res)
 
   this%yield_calculated = .true.
 end subroutine calc_fluid_yield
@@ -1774,7 +1774,7 @@ subroutine project_sputter_vars_on_edge(this, sim)
         yield = 1.d0 !<assuming complete wall saturation
       case("fluid sputter")
         if(this%use_physical_sputter) then
-          physical_yield = 0.3 ! fluid_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 0.d0)
+          physical_yield = fluid_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 0.d0)
         else 
           physical_yield = 0.d0
         end if
@@ -1790,6 +1790,8 @@ subroutine project_sputter_vars_on_edge(this, sim)
       end select
 
       this%fluid_yield_integral%patch(i_patch)%scalars(i,1) = Gamma_d * this%delta_t * yield !< particles / m^2 in this timestep
+      this%fluid_yield_integral%patch(i_patch)%scalars(i,12) = Gamma_d * this%delta_t * physical_yield
+      this%fluid_yield_integral%patch(i_patch)%scalars(i,13) = Gamma_d * this%delta_t * chemical_yield
 
       if (this%do_wall_projection) then
         !associate (sc => this%wall_projection%patch(i_patch)%scalars) ! associate is nice to make more readable but cannot be used in OMP before version 4.5 (so not in OneAPI's OMP)

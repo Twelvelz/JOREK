@@ -124,6 +124,9 @@ module phys_module
   integer :: gmres_max_iter       !< Maximum number of GMRES iterations
   logical :: keep_n0_const        !< Perform a linear run where the equilibrium quantities (i_tor=1) do not change with time?
   logical :: linear_run           !< Same as keep_n0_const, to be replaced soon by true linear run where modes are independent
+  logical :: use_zkperp_times_density   !< If set to .true., the ZK_perp used in the equations is given by the ZK_perp input form the namelist times the normalized particle density; otherwise ZK_perp from the input namelist is used directly
+                                        !< Effectively, user sets chi_perp perp heat diffusivity instead of ZK_perp perp heat conductivitiy
+  real*8  :: zkperp_density_floor !< Minumum density to multiply zkperp by if use_zkperp_times_density is used, to avoid division by 0
   logical :: export_for_nemec     !< Export equilibrium information for the NEMEC code?
   logical :: export_aux_node_list !< Include the aux_node_list for particle projections in the restart files
   logical :: use_murge            !< (Deprecated, Cannot be used any more)
@@ -950,6 +953,7 @@ module phys_module
   real*8, allocatable :: re_current_t(:), Ipre_tot_t(:)
 
   !> @name Particles-related input parameters
+  logical :: use_particles        !< Flag if simulation contains particles
   integer :: n_aux_var            !< number of variables in aux_node_list
   integer :: n_diag_var = n_var   !< number of variables in diag_node_list (= n_var is temporary)
   logical :: restart_particles    !< Load in previously simulated particles from a the part_restart.h5 restart file?
@@ -1041,7 +1045,9 @@ module phys_module
   ! ------------------------------------------------
   !> @name Particle group settings
   integer            :: n_part_groups                !< number of particle groups being used
-  integer, parameter :: n_part_groups_max = 20       !< maximum number of particle groups     
+  integer, parameter :: n_part_groups_max = 20       !< maximum number of particle groups
+  integer            :: proj_collection_period       !< projections collected every proj_collection_period steps - only impletemeted for coupling scheme epf
+                                                     !< speed-up scheme - eg proj_collection_period=10 then projections collected every 10th particle step
   
   !> Contains configuration and settings relating to a particle group
   type :: type_part_group_config
@@ -1101,6 +1107,15 @@ module phys_module
     real*8              :: re_energy               !< energy [eV] of the runaway electrons in the group
     real*8              :: re_std_energy           !< standard deviation of the energy [eV] of the runaway electrons in the group
     real*8              :: re_pitch                !< pitch between RE momentum and magnetic field line (i.e. p_re_par/p_re_tot)
+
+    ! =============== for energetic particles ('epc', 'epp', 'epf' coupling schemes) ==========
+    real*8              :: T_maxwell               !< Maxwellian temperature [eV] for the energetic particles
+    integer             :: n_phi_planes            !< number of times to copy initialised particles around phi.
+                                                   !< for example n_phi_planes=4, n_particles=1e4 then only 250 particles are initialised
+                                                   !< each particle is then copied multiple (3) times around the torus with angle 2pi/n_phi_planes (= pi/2)
+                                                   !< if n_phi_planes=int*n_period then projected particle quantities are initialised as 0 for n_tor>1
+    real*8              :: n_particles_total       !< Total number of particles to simulate (ie sum(weights)) !!NOT n_particles - total number of super/numeric-particles
+
 
   end type type_part_group_config
 

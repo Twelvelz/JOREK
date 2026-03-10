@@ -114,59 +114,61 @@ subroutine conservation_block(sim,group_num)
   select type (particles => sim%groups(group_num)%particles)
   type is (particle_kinetic_leapfrog)
 #ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
-#else
-    !$omp parallel do default(none)  &
-    !$omp shared(particles, mass)    &
-    !$omp private(j)                 &
-#endif
+    !$omp parallel do default(shared) &
     !$omp reduction(+:particles_remaining, particles_elm_lt0, momentum_remaining, energy_remaining,superparticles_remaining)
-      do j=1,size(particles,1)
+#else
+    !$omp parallel do default(none) &
+    !$omp shared(sim, group_num, mass) &  
+    !$omp private(j) &
+    !$omp reduction(+:particles_remaining, particles_elm_lt0, momentum_remaining, energy_remaining,superparticles_remaining)
+#endif
+    do j=1,size(particles,1)
 
-        if (particles(j)%i_elm .lt. 0) particles_elm_lt0 = particles_elm_lt0 + particles(j)%weight
+      !< account for lost particles
+      if (particles(j)%i_elm .lt. 0) particles_elm_lt0 = particles_elm_lt0 + particles(j)%weight
+      if (particles(j)%i_elm .le. 0) cycle
 
+      !< account for remaining (super)particles
+      superparticles_remaining = superparticles_remaining + 1
+      particles_remaining      = particles_remaining + particles(j)%weight
 
-        if (particles(j)%i_elm .le. 0) cycle
-
-        particles_remaining = particles_remaining + particles(j)%weight
-        momentum_remaining  = momentum_remaining  + particles(j)%weight * particles(j)%v * mass
-        energy_remaining    = energy_remaining    + particles(j)%weight * 0.5d0 * mass * dot_product(particles(j)%v,particles(j)%v)
-        superparticles_remaining = superparticles_remaining + 1
-
-      enddo !j
+      momentum_remaining  = momentum_remaining  + particles(j)%weight * particles(j)%v * mass
+      energy_remaining    = energy_remaining    + particles(j)%weight * 0.5d0 * mass * dot_product(particles(j)%v,particles(j)%v)
+    enddo !j
     !omp end parallel do
 
   type is (particle_kinetic_relativistic)
 #ifdef __GFORTRAN__
-    !$omp parallel do default(shared) & ! workaround for Error: �__vtab_mod_pcg32_rng_Pcg32_rng� not specified in enclosing �parallel�
-#else
-    !$omp parallel do default(none)   &
-    !$omp shared(particles, mass)     &
-    !$omp private(gamma_m,j)          &
-#endif
+    !$omp parallel default(shared) &
     !$omp reduction(+:particles_remaining, particles_elm_lt0, momentum_remaining, energy_remaining,superparticles_remaining)
-      do j=1,size(particles,1)
+#else
+    !$omp parallel do default(none) &
+    !$omp shared(sim, group_num, mass) &  
+    !$omp private(gamma_m, j) &
+    !$omp reduction(+:particles_remaining, particles_elm_lt0, momentum_remaining, energy_remaining,superparticles_remaining)
+#endif
+    do j=1,size(particles,1)
 
-        !< account for lost particles
-        if (particles(j)%i_elm .lt. 0) particles_elm_lt0 = particles_elm_lt0 + particles(j)%weight
-        if (particles(j)%i_elm .le. 0) cycle
+      !< account for lost particles
+      if (particles(j)%i_elm .lt. 0) particles_elm_lt0 = particles_elm_lt0 + particles(j)%weight
+      if (particles(j)%i_elm .le. 0) cycle
 
-        !< account for remaining (super)particles
-        superparticles_remaining = superparticles_remaining + 1
-        particles_remaining      = particles_remaining + particles(j)%weight
+      !< account for remaining (super)particles
+      superparticles_remaining = superparticles_remaining + 1
+      particles_remaining      = particles_remaining + particles(j)%weight
 
-        !< calculate Lorentz factor
-        gamma_m = sqrt(mass**2 + dot_product(particles(j)%p, particles(j)%p)*ATOMIC_MASS_UNIT**2/SPEED_OF_LIGHT**2)
+      !< calculate Lorentz factor
+      gamma_m = sqrt(mass**2 + dot_product(particles(j)%p, particles(j)%p)*ATOMIC_MASS_UNIT**2/SPEED_OF_LIGHT**2)
 
-        momentum_remaining = momentum_remaining + particles(j)%weight * particles(j)%p * ATOMIC_MASS_UNIT
-        energy_remaining   = energy_remaining   + particles(j)%weight *(gamma_m - mass*ATOMIC_MASS_UNIT) * SPEED_OF_LIGHT**2
+      momentum_remaining = momentum_remaining + particles(j)%weight * particles(j)%p * ATOMIC_MASS_UNIT
+      energy_remaining   = energy_remaining   + particles(j)%weight *(gamma_m - mass*ATOMIC_MASS_UNIT) * SPEED_OF_LIGHT**2
 
-      enddo !j
+    enddo !j
     !omp end parallel do
 
   class default
-      if(sim%my_id == 0) write(*,*) "conservation_block() only implemented for particle_kinetic_leapfrog and particle_kinetic_relativistic, not for particle type of group ",sim%groups(group_num)%id
-      return
+    if(sim%my_id == 0) write(*,*) "conservation_block() only implemented for particle_kinetic_leapfrog and particle_kinetic_relativistic, not for particle type of group ",sim%groups(group_num)%id
+    return
   end select
 
   call MPI_REDUCE(particles_remaining, all_particles,         1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)

@@ -149,6 +149,10 @@ module mod_particle_recomb
             k = ife +(mp-1)* size(rec_rate_local,1)!< every OMP thread gets different values
             !< every MPI process has it's own list of i_free.
 
+            if (k > size(i_free,1)) then
+              if(sim%my_id .eq. 0) write(6,*) 'Not enough free particles to sample all recombination events. Consider increasing n_particles.', k, size(i_free,1)
+              STOP 
+            end if
 
             ! initialise particle in the element with Position, Weight, Energy, Momentum
             do i = 1, particles_per_element

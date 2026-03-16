@@ -102,6 +102,8 @@ module mod_particle_wall_interaction
     integer             :: fluid_Z         = -999     !< Z of this fluid species (e.g. -2 for D)
     type(edge_elements) :: fluid_yield_integral       !< the yield (of the specified interaction type) integrated over f(v) for this fluid species
     type(type_cdf_data) :: res                        !< data on the cumulative distribution function calculated at the integral which is needed when sampling
+    type(type_cdf_data) :: res_physical               !< data on the cumulative distribution function calculated at the integral for the physical part of the sputter yield, which is needed when sampling
+    type(type_cdf_data) :: res_chemical               !< data on the cumulative distribution function calculated at the integral for the chemical part of the sputter yield, which is needed when sampling
     real*8              :: domain_integral            !< [# particles] total weight of all created particles in this wall_action for this timestep
     real*8              :: domain_integral_physical   !< physical part of sputterred particles
     real*8              :: domain_integral_chemical   !< chemical part of sputterred particles
@@ -393,7 +395,7 @@ subroutine construct_wall_action(this, sim, origin_group, config, edge_element_t
 
   ! --- diagnostics
   this%write_vtk = config%write_vtk
-  if(this%fluid2part) extra_proj_scalar_names = ["n_e           ","T_e           ","cos_alpha     ","Psi_n         ","fluid_flux    ","fluid_heatflux","fluid_yield   ", "physical_yield", "chemical_yield" ]
+  if(this%fluid2part) extra_proj_scalar_names = ["n_e           ","T_e           ","cos_alpha     ","Psi_n         ","fluid_flux    ","fluid_heatflux","fluid_yield   ","physical_yield","chemical_yield"]
   
   ! if there are no extra projections, set the allocatable to 0
   if(.not. allocated(extra_proj_scalar_names)) allocate(extra_proj_scalar_names(0))
@@ -477,7 +479,7 @@ subroutine construct_wall_action(this, sim, origin_group, config, edge_element_t
     allocate(this%fluid_yield_integral%patch(i)%scalars( &
       size(this%fluid_yield_integral%patch(i)%st,2), 1))
     
-    this%fluid_yield_integral%patch(i)%scalars = -1
+    this%fluid_yield_integral%patch(i)%scalars = 0.d0
   end do
 
   ! --- allocate random seed for sampling
@@ -937,7 +939,9 @@ subroutine do_wall_act_group(this, sim, post_evolution)
       n_supers_tot = this%create_scheme%supers_to_create(sim%my_id,total_yield)
   
       if(sim%my_id == 0) then
-        write(*,"(A50,' = ',3es16.6)") "total sputter yield for this wall_act_group       ",total_yield, physical_yield, chemical_yield
+        write(*,"(A50,' = ',3es16.6)") "total sputter yield for this wall_act_group       ",total_yield
+        write(*,"(A50,' = ',3es16.6)") "physical sputter yield for this wall_act_group    ",physical_yield
+        write(*,"(A50,' = ',3es16.6)") "chemical sputter yield for this wall_act_group    ",chemical_yield
         if (trim(this%create_scheme%scheme) == "num") write(*,"(A50,' = ',I12)") "supers_num                                        ", this%create_scheme%supers_num
         if (trim(this%create_scheme%scheme) == "weight") write(*,"(A50,' = ',es16.6)") "supers_weight                                     ", this%create_scheme%supers_weight
         if (trim(this%create_scheme%scheme) == "ratio") write(*,"(A50,' = ',es16.6)") "supers_ratio                                      ", this%create_scheme%supers_ratio
@@ -1562,9 +1566,9 @@ subroutine calc_fluid_yield(this,sim)
   call project_sputter_vars_on_edge(this, sim)
 
   ! determine integral over the domain
-  call integrate_edge_elements(this%fluid_yield_integral, 1, this%domain_integral, this%res)
-  call integrate_edge_elements(this%fluid_yield_integral, 12, this%domain_integral_physical, this%res)
-  call integrate_edge_elements(this%fluid_yield_integral, 13, this%domain_integral_chemical, this%res)
+  call integrate_edge_elements(this%fluid_yield_integral, 11, this%domain_integral, this%res)
+  call integrate_edge_elements(this%fluid_yield_integral, 12, this%domain_integral_physical, this%res_physical)
+  call integrate_edge_elements(this%fluid_yield_integral, 13, this%domain_integral_chemical, this%res_chemical)
 
   this%yield_calculated = .true.
 end subroutine calc_fluid_yield
@@ -1669,6 +1673,46 @@ pure function fluid_sputtering_yield(coeff, T_eV, Z, theta) result(yield)
   ! yield = yield / (2*n_interval**2)
 end function fluid_sputtering_yield
 
+function chemical_sputtering_yield(T_target, E_in, flux_in) result(yield)
+  implicit none
+  real*8, intent(in) :: T_target, E_in, flux_in
+  real*8 :: yield
+  real*8 :: E_TF_H, Q_H, D_H, E_dam, E_des, E_rel, E_therm
+  real*8 :: Q1, D1, E_TF1, ratio, Sn_E0, Ydam, Ydes, flux_judge
+  real*8 :: c, c_sp3, Ytherm, Ysurf
+
+  ! constants for H-C chemical sputtering
+  E_TF_H = 447.0d0
+  Q_H = 0.1d0
+  D_H = 125.0d0
+  E_dam = 15.0d0
+  E_des = 2.0d0
+  E_rel = 1.8d0
+  E_therm = 1.7d0
+
+  Q1 = Q_H
+  D1 = D_H
+  E_TF1 = E_TF_H
+
+  ratio = E_in / E_TF1
+  Sn_E0 = 0.5d0 * log(1.0d0 + 1.2288d0 * ratio) / (ratio + 0.1728d0 * sqrt(ratio) + 0.008d0 * ratio**0.1504d0)
+  Ydam = Q1 * Sn_E0 * (1.0d0 - (E_dam / E_in)**(2.0d0 / 3.0d0)) * (1.0d0 - E_dam / E_in)**2.0d0
+  Ydes = Q1 * Sn_E0 * (1.0d0 - (E_des / E_in)**(2.0d0 / 3.0d0)) * (1.0d0 - E_des / E_in)**2.0d0
+  flux_judge = 1.0d30 * exp(-1.4d0 / T_target)
+
+  c = 1.0d0 / (1.0d0 + 3.0d-23 * flux_in * merge(1.0d0, 0.0d0, flux_in > flux_judge) + 3.0d7 * exp(-1.4d0 / T_target) * merge(1.0d0, 0.0d0, flux_in <= flux_judge))
+  c_sp3 = c * (2.0d-32 * flux_in + exp(-E_therm / T_target)) / (2.0d-32 * flux_in + (1.0d0 + 2.0d29 / flux_in * exp(-E_rel / T_target)) * exp(-E_therm / T_target))
+  Ytherm = c_sp3 * 0.033d0 * exp(-E_therm / T_target) / (2.0d-32 * flux_in + exp(-E_therm / T_target))
+  Ysurf = c_sp3 * Ydes / (1.0d0 + exp((E_in - 65.0d0) / 40.0d0))
+  
+  if(Ydam < 0.0d0) Ydam = 0.0d0
+  if(Ydes < 0.0d0) Ydes = 0.0d0
+  if(Ytherm < 0.0d0) Ytherm = 0.0d0
+  if(Ysurf < 0.0d0) Ysurf = 0.0d0
+  ! output
+  yield = Ytherm * (1.0d0 + D1 * Ydam) + Ysurf
+end function chemical_sputtering_yield
+
 
 !> Calculate the flux to and some diagnostics for fluid flux in
 !> a period delta_t.
@@ -1722,7 +1766,7 @@ subroutine project_sputter_vars_on_edge(this, sim)
 
   ! resetting fluid yield integral scalars
   do i=1,size(this%fluid_yield_integral%patch,1)
-    this%fluid_yield_integral%patch(i)%scalars = -1
+    this%fluid_yield_integral%patch(i)%scalars(:,:) = -1
   end do
 
   do i_patch = 1, size(this%fluid_yield_integral%patch,1) !< different parts of edge domain
@@ -1770,19 +1814,21 @@ subroutine project_sputter_vars_on_edge(this, sim)
       ! Assume an impact angle of 0!
       ! need the abs here because we cheat using negative numbers to indicate D, T
       ! cap ionisation level to 4
-      q = min(abs(this%fluid_Z), 4)
+      q = min((this%fluid_Z), 4)
       select case(trim(this%type))
       case("wall recomb")
         yield = 1.d0 !<assuming complete wall saturation
+        physical_yield = 0.d0
+        chemical_yield = 0.d0
       case("fluid sputter")
         if(this%use_physical_sputter) then
-          physical_yield = fluid_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 0.d0)
+          physical_yield =  fluid_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 0.d0)
         else 
           physical_yield = 0.d0
         end if
 
         if(this%use_chemical_sputter) then
-          chemical_yield = 0.2
+          chemical_yield = chemical_sputtering_yield(500 * K_BOLTZ/EL_CHG, 5*T_e * K_BOLTZ/EL_CHG, Gamma_d)
         else 
           chemical_yield = 0.d0
         end if
@@ -1791,7 +1837,7 @@ subroutine project_sputter_vars_on_edge(this, sim)
         call wrong_interaction_type(trim(this%type))
       end select
 
-      this%fluid_yield_integral%patch(i_patch)%scalars(i,1) = Gamma_d * this%delta_t * yield !< particles / m^2 in this timestep
+      this%fluid_yield_integral%patch(i_patch)%scalars(i,11) = Gamma_d * this%delta_t * yield !< particles / m^2 in this timestep
       this%fluid_yield_integral%patch(i_patch)%scalars(i,12) = Gamma_d * this%delta_t * physical_yield
       this%fluid_yield_integral%patch(i_patch)%scalars(i,13) = Gamma_d * this%delta_t * chemical_yield
 
@@ -1827,7 +1873,7 @@ subroutine project_sputter_vars_on_edge(this, sim)
         this%wall_projection%patch(i_patch)%scalars(i, n_project_general+7) = &
         this%wall_projection%patch(i_patch)%scalars(i, n_project_general+7) + &
           Gamma_d * this%delta_t * yield
-
+    
         this%wall_projection%patch(i_patch)%scalars(i, n_project_general+8) = &
         this%wall_projection%patch(i_patch)%scalars(i, n_project_general+8) + &
           Gamma_d * this%delta_t * physical_yield

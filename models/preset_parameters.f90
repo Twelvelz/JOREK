@@ -961,10 +961,10 @@ do i=1, n_part_groups_max
 
     part_group_configs(i)%wall_act_configs(j)%use_physical_sputter  = .false.
     part_group_configs(i)%wall_act_configs(j)%use_chemical_sputter  = .false.
-    part_group_configs(i)%wall_act_configs(j)%use_thompson          = .false.
-    part_group_configs(i)%wall_act_configs(j)%use_Yn_func           = .false.
+    part_group_configs(i)%wall_act_configs(j)%use_thompson          = .true.
+    part_group_configs(i)%wall_act_configs(j)%use_Yn_func           = .true.
 
-    part_group_configs(i)%wall_act_configs(j)%write_vtk             = .false.
+    part_group_configs(i)%wall_act_configs(j)%write_vtk             = .true.
   enddo
   part_group_configs(i)%wall_act_each_nstep_part = -9999991
 enddo

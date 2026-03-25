@@ -915,6 +915,8 @@ part_group_configs(:)%use_kin_bg_collisions  = .false.
 part_group_configs(:)%kin_bg_coll_type       = 'Homma2020'
 part_group_configs(:)%homma2020_alpha        = 1.5d0
 part_group_configs(:)%ics_group_idx          = -1
+write(6,*) 'llzz--22', part_group_configs(:)%kin_bg_coll_type
+write(6,*) 'llzz--33', part_group_configs(:)%use_kin_bg_collisions
 
 !----- specific to rep 
 part_group_configs(:)%num_re                 = 0.d0

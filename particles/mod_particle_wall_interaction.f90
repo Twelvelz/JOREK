@@ -70,7 +70,7 @@ module mod_particle_wall_interaction
   implicit none
    
   private
-  public :: wall_act_group, wall_actions_from_config, gcd_wall_acts
+  public :: wall_act_group, wall_actions_from_config, gcd_wall_acts, chemical_sputtering_yield, fluid_sputtering_yield
 
   ! action containing the wall interaction information for one origin species to one target species
   type, extends(io_action) :: wall_action
@@ -407,7 +407,10 @@ subroutine construct_wall_action(this, sim, origin_group, config, edge_element_t
   this%use_thompson         = config%use_thompson
   this%use_Yn_func          = config%use_Yn_func
 
-  if(this%use_physical_sputter) call this%load_eckstein_data(sim)
+  if(this%use_physical_sputter) then
+    call this%load_eckstein_data(sim)
+    write(6,*) 'llzz--11', sim%my_id, this%yield%Z_ion, this%yield%Z_target, this%yield%lambda, this%yield%yn(1)
+  end if
 
   ! initialising the edge_element objects from the template
   if (.not. allocated(edge_element_template%patch(1)%xyz)) then
@@ -1757,6 +1760,7 @@ subroutine project_sputter_vars_on_edge(this, sim)
 
   real*8 :: psi_axis, R_axis, Z_axis, s_axis, t_axis, psi_xpoint(2), psi_limit, R_xpoint(2), Z_xpoint(2), s_xpoint(2), t_xpoint(2)
   integer :: i_elm_axis, ifail, i_elm_xpoint(2)
+  character(len=30) :: filename
 
   c_angle = min_sheath_angle * PI/180.d0
 
@@ -1787,7 +1791,15 @@ subroutine project_sputter_vars_on_edge(this, sim)
     this%fluid_yield_integral%patch(i)%scalars(:,:) = -1
   end do
 
+  !if(sim%my_id .eq. 0 .and. mod(sim%istep_fluid,10) .eq. 0) then
+  !   write(filename,'(I05.5,A,A)')  sim%istep_fluid,'_',trim(this%name)
+  !   open(122, file=filename)
+  !end if
+
   do i_patch = 1, size(this%fluid_yield_integral%patch,1) !< different parts of edge domain
+    
+    !write(122,'(A,I3,2F8.4)') "# i_patch ", i_patch, R_axis, Z_axis
+
 #ifdef __GFORTRAN__
     !$omp parallel do default(shared) &
 #else
@@ -1859,6 +1871,13 @@ subroutine project_sputter_vars_on_edge(this, sim)
       this%fluid_yield_integral%patch(i_patch)%scalars(i,12) = Gamma_d * this%delta_t * physical_yield
       this%fluid_yield_integral%patch(i_patch)%scalars(i,13) = Gamma_d * this%delta_t * chemical_yield
 
+      !if(sim%my_id .eq. 0) then
+      !!$omp critical
+      ! write(122,'(I5,3F8.4,3ES12.5,10ES12.4, 3ES12.4)')  i, this%fluid_yield_integral%patch(i_patch)%xyz(1:3,i),  \
+      !              this%fluid_yield_integral%patch(i_patch)%scalars(i,11:13), n_e, T_e, vpar, c_s, cos_alpha, c_angle,  Gamma_d, yield, physical_yield, chemical_yield, vector_normal(1:3)         
+      !!$omp end critical
+      !end if
+
       if (this%do_wall_projection) then
         !associate (sc => this%wall_projection%patch(i_patch)%scalars) ! associate is nice to make more readable but cannot be used in OMP before version 4.5 (so not in OneAPI's OMP)
         ! These are all also multiplied by delta_t so we can make an average
@@ -1904,6 +1923,8 @@ subroutine project_sputter_vars_on_edge(this, sim)
     end do
     !$omp end parallel do
   end do
+  !close(122)
+
 end subroutine project_sputter_vars_on_edge
 
 

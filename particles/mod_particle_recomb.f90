@@ -150,7 +150,7 @@ module mod_particle_recomb
             !< every MPI process has it's own list of i_free.
 
             if (k > size(i_free,1)) then
-              if(sim%my_id .eq. 0) write(6,*) 'Not enough free particles to sample all recombination events. Consider increasing n_particles.', k, size(i_free,1)
+              write(6,*) 'Not enough free particles to sample all recombination events. Consider increasing n_particles.', k, size(i_free,1)
               STOP 
             end if
 

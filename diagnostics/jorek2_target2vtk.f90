@@ -20,6 +20,11 @@ use equil_info, only : get_psi_n, ES
 use mod_interp
 use constants, only : ATOMIC_MASS_UNIT
 
+! Z.Liang: For some specific diagnostics related to particle-wall interaction.
+use mod_particle_wall_interaction, only:chemical_sputtering_yield, fluid_sputtering_yield
+use mod_eckstein_y_ye
+use mod_atomic_elements
+
 implicit none
 
 integer               :: nnoel, nnos, nel, nsub, inode, ielm, n_scalars, n_vectors, my_id
@@ -45,6 +50,11 @@ logical               :: periodic
 logical               :: without_n0_mode
 integer               :: i_bnd_node, i_node
 
+real*8 :: vector_normal(3), cos_alpha, mass_ion, c_s, Gamma_d, physical_coff, chemical_coff
+real*4 :: B_hat(3)
+
+type(eckstein_sputter_yield)   :: eck_spt_yield
+
 namelist /vtk_params/ nsub, periodic, without_n0_mode
 
 write(*,*) '*********************************'
@@ -54,6 +64,11 @@ write(*,*) '*********************************'
 ! --- Initialise input parameters and read the input namelist.
 my_id = 0
 call initialise_parameters(my_id, "__NO_FILENAME__")
+
+eck_spt_yield%Z_ion = -2
+eck_spt_yield%Z_target = 6
+call eck_spt_yield%read()
+write(6,*) 'Eckstein sputtering yield initialized.', eck_spt_yield%Z_ion, eck_spt_yield%E_threshold, eck_spt_yield%lambda, eck_spt_yield%yn(2)
 
 ! --- Preset parameters
 nsub      = 5             ! Number of subdivisions of the cubic finite elements into linear pieces
@@ -82,13 +97,14 @@ call flush_it(6)
 
 ivtk = 21                 ! an arbitrary unit number for the VTK output file
 
-n_scalars = 13             ! number of scalars to write to the VTK output file
-n_vectors = 3
+n_scalars = 16             ! number of scalars to write to the VTK output file
+n_vectors = 4
 
 allocate(scalar_names(n_scalars), vector_names(n_vectors))
 
 scalar_names = (/ 'flux    ','density ','T       ','Vpar    ','nV.n    ','nTV.n   ','KparT.n ', &
-                  'Kperp.T ','Dperp.n ','B.n     ','nvT_gam ','n       ','nV3.n   '/)
+                  'Kperp.T ','Dperp.n ','B.n     ','nvT_gam ','n       ','nV3.n   ','Gamma_d ', &
+                  'phy_sptc','che_sptc'/)
 
 vector_names = (/ 'B_field ','Velocity','normal  '/)
 
@@ -369,10 +385,14 @@ do m=1, n_plane
 
           call conductivity_parallel(ZK_par, ZK_par_max, T, corr_neg_temp(T), T_min_ZKpar, T_0, ZKpar_T)
 
+          !Z. liang
+          vector_normal = wall_normal_vector(node_list, element_list, i, sg, tg)
+
+
           scalars(inode,1) = psi
           scalars(inode,2) = rho
           scalars(inode,3) = T
-          scalars(inode,4) = Vpar * sqrt(BB2)
+          scalars(inode,4) = Vpar !* sqrt(BB2)
 
          if   (  ((node_list%node(inode1)%boundary .eq. 1)  &
               .or.(node_list%node(inode1)%boundary .eq. 4)  &
@@ -407,6 +427,7 @@ do m=1, n_plane
             vectors(inode,:,1) = (/ + psi_y /BigR * cos(angle), - psi_x /BigR, + psi_y /BigR * sin(angle) /) 
             vectors(inode,:,2) = (/ + vpar * psi_y /BigR* cos(angle), - vpar * psi_x /BigR, + vpar * psi_y /BigR * sin(angle) /) 
             vectors(inode,:,3) = (/ - Z_s * cos(angle), + R_s, -Z_s * sin(angle)  /) / sqrt(R_s**2+Z_s**2) * normal
+            vectors(inode,:,4) = vector_normal
 
             avg6(inode_avg) = avg6(inode_avg) + scalars(inode,6)
             avg7(inode_avg) = avg7(inode_avg) + scalars(inode,7)
@@ -465,7 +486,7 @@ do m=1, n_plane
 	    prf1(inode_avg)  = scalars(inode,1)
             prf7(inode_avg)  = scalars(inode,7) / MU_zero / t_norm * 1.5
             prf6(inode_avg)  = scalars(inode,6) / MU_zero / t_norm * 1.5
-            prf2(inode_avg)  = scalars(inode,2) * central_density
+            prf2(inode_avg)  = scalars(inode,2) * central_density * 1.d20
             prf3(inode_avg)  = scalars(inode,3) / MU_zero / (central_density * 1d20) / 1.602d-19 /2.
             prf4(inode_avg)  = scalars(inode,4) / t_norm
             prf5(inode_avg)  = scalars(inode,5) * central_density / t_norm
@@ -515,7 +536,7 @@ close(22)
 !scalar_names = (/ 'flux    ','density ','T       ','Vpar    ','nV.n    ','nTV.n   ','KparT.n ', &
 !                  'Kperp.T ','Dperp.n ','B.n     '/)
 
-scalars(:,2) = scalars(:,2) * central_density
+scalars(:,2) = scalars(:,2) * central_density * 1d20
 scalars(:,3) = scalars(:,3) / MU_zero / (central_density * 1d20) / 1.602d-19 /2. !(assumes Te=Ti=T/2)
 scalars(:,4) = scalars(:,4) / t_norm
 scalars(:,5) = scalars(:,5) * central_density / t_norm
@@ -553,8 +574,19 @@ do i=1, n_points
   Z_start = Zprf(index)
   tobedone(index) = .false.
 
-  write(22,'(12e16.8)') distance, Rprf(index),Zprf(index),angle,prf7(index),prf6(index), &
-                        prf2(index), prf3(index),  prf4(index), prf5(index), prf11(index) 
+  mass_ion = central_mass * ATOMIC_MASS_UNIT
+  c_s = sqrt((gamma * (2*1.602176565d-19 *prf3(index)))/mass_ion)
+
+  B_hat = vectors(index,:,1)/norm2(vectors(index,:,1))
+  cos_alpha = abs(dot_product(vectors(index,:,4),B_hat))
+  Gamma_d = prf2(index) * abs(prf4(index)) * norm2(vectors(index,:,1)) * cos_alpha + prf2(index)  * c_s * min_sheath_angle * PI/180.d0
+
+  physical_coff = fluid_sputtering_yield(eck_spt_yield, prf3(index),-2,0.d0)
+  chemical_coff = chemical_sputtering_yield(500 * K_BOLTZ/EL_CHG, 5*prf3(index), Gamma_d)
+
+  write(22,'(12e16.8,8ES16.5)') distance, Rprf(index),Zprf(index),angle,prf7(index),prf6(index), &
+                        prf2(index), prf3(index),  prf4(index), prf5(index), prf11(index), &
+                        vectors(index,:,4), c_s, cos_alpha, Gamma_d, physical_coff, chemical_coff
 
   write(23,'(12e16.8)') xtime(index_start),xtime(index_start)-xtime(index_start-10), distance, &
                         Ravg(index),Zavg(index),avg6(index),avg7(index),avg8(index),avg11(index),normal

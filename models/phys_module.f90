@@ -1045,7 +1045,7 @@ module phys_module
   ! ------------------------------------------------
   !> @name Particle group settings
   integer            :: n_part_groups                !< number of particle groups being used
-  integer, parameter :: n_part_groups_max = 20       !< maximum number of particle groups
+  integer, parameter :: n_part_groups_max = 5       !< maximum number of particle groups
   integer            :: proj_collection_period       !< projections collected every proj_collection_period steps - only impletemeted for coupling scheme epf
                                                      !< speed-up scheme - eg proj_collection_period=10 then projections collected every 10th particle step
   

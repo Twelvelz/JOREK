@@ -248,7 +248,7 @@ end function calc_E_sputtered_energy_coeff
 !> ...
 !> ```
 subroutine read(this)
-  use mpi_mod
+  !use mpi_mod
   class(eckstein_coeff_set), intent(inout) :: this ! should have Z_ion and Z_target set
   character(len=2) :: ctype
   integer :: u, ierr, i
@@ -257,8 +257,8 @@ subroutine read(this)
   type(eckstein_coeff), allocatable :: yn(:), temp(:) !< dummy variables to read into
   integer :: my_id
 
-  call MPI_Comm_rank(MPI_COMM_WORLD, my_id, ierr)
-  
+  !call MPI_Comm_rank(MPI_COMM_WORLD, my_id, ierr)
+  my_id = 0
 
   select type (c => this)
   type is (eckstein_sputter_yield)

@@ -70,7 +70,7 @@ module mod_particle_wall_interaction
   implicit none
    
   private
-  public :: wall_act_group, wall_actions_from_config, gcd_wall_acts, chemical_sputtering_yield, fluid_sputtering_yield
+  public :: wall_act_group, wall_actions_from_config, gcd_wall_acts, chemical_sputtering_yield, physical_sputtering_yield
 
   ! action containing the wall interaction information for one origin species to one target species
   type, extends(io_action) :: wall_action
@@ -91,8 +91,6 @@ module mod_particle_wall_interaction
     type(thompson_dist)                   :: E_dist = thompson_dist(E_b = 8.7d0, n=2) !< produces energies in eV (value for W default)
     logical :: use_thompson = .false. !< Use a thompson distribution for the energy of sputtered particles
     logical :: use_Yn_func  = .false. !< Use Ecksteins interpolating functions instead of interpolating manually
-    logical :: use_physical_sputter = .false. !< whether include physical sputtering 
-    logical :: use_chemical_sputter = .false. !< whether include chemical sputtering 
     
     class(type_rng), dimension(:), allocatable :: rng !< one RNG per openmp thread
 
@@ -102,11 +100,7 @@ module mod_particle_wall_interaction
     integer             :: fluid_Z         = -999     !< Z of this fluid species (e.g. -2 for D)
     type(edge_elements) :: fluid_yield_integral       !< the yield (of the specified interaction type) integrated over f(v) for this fluid species
     type(type_cdf_data) :: res                        !< data on the cumulative distribution function calculated at the integral which is needed when sampling
-    type(type_cdf_data) :: res_physical               !< data on the cumulative distribution function calculated at the integral for the physical part of the sputter yield, which is needed when sampling
-    type(type_cdf_data) :: res_chemical               !< data on the cumulative distribution function calculated at the integral for the chemical part of the sputter yield, which is needed when sampling
     real*8              :: domain_integral            !< [# particles] total weight of all created particles in this wall_action for this timestep
-    real*8              :: domain_integral_physical   !< physical part of sputterred particles
-    real*8              :: domain_integral_chemical   !< chemical part of sputterred particles
     logical             :: yield_calculated=.false.   !< whether the fluid yield integral has already been separately calculated for this timestep (.true.) or not (.false.)
 
     type(type_part_create_scheme) :: create_scheme    !< super particles create scheme
@@ -206,7 +200,7 @@ subroutine construct_wall_action(this, sim, origin_group, config, edge_element_t
   select case(trim(this%type))
   case("self sputter")
     this%part2self = .true.
-  case("fluid sputter")
+  case("physical sputter", "chemical sputter")
     this%fluid2part = .true.
   case("other sputter")
     this%part2other = .true.
@@ -395,21 +389,16 @@ subroutine construct_wall_action(this, sim, origin_group, config, edge_element_t
 
   ! --- diagnostics
   this%write_vtk = config%write_vtk
-  if(this%fluid2part) extra_proj_scalar_names = ["n_e           ","T_e           ","cos_alpha     ","Psi_n         ","fluid_flux    ","fluid_heatflux","fluid_yield   ","physical_yield","chemical_yield"]
+  if(this%fluid2part) extra_proj_scalar_names = ["n_e           ","T_e           ","cos_alpha     ","Psi_n         ","fluid_flux    ","fluid_heatflux","fluid_yield   "]
   
   ! if there are no extra projections, set the allocatable to 0
   if(.not. allocated(extra_proj_scalar_names)) allocate(extra_proj_scalar_names(0))
   if(this%n_project_part < 0) this%n_project_part = n_project_general
 
-  !--- sputtering settings
-  this%use_physical_sputter = config%use_physical_sputter
-  this%use_chemical_sputter = config%use_chemical_sputter
-  this%use_thompson         = config%use_thompson
-  this%use_Yn_func          = config%use_Yn_func
-
-  if(this%use_physical_sputter) then
+  if(this%type .eq. 'physical sputter') then
     call this%load_eckstein_data(sim)
-    write(6,*) 'llzz--11', sim%my_id, this%yield%Z_ion, this%yield%Z_target, this%yield%lambda, this%yield%yn(1)
+    this%use_thompson         = config%use_thompson
+    this%use_Yn_func          = config%use_Yn_func
   end if
 
   ! initialising the edge_element objects from the template
@@ -596,7 +585,7 @@ function wall_actions_from_config(sim, edge_element_template) result(wall_act_gr
       select case(trim(config%type))
       case("none") 
         cycle
-      case("fluid sputter")
+      case("physical sputter", "chemical sputter")
         new_target=.true.
         ! check whether a group already exists for this target
         do k=1,n_part_groups_max
@@ -638,7 +627,7 @@ function wall_actions_from_config(sim, edge_element_template) result(wall_act_gr
                                   "but for sputtering into particle group with id=",config%target_group_id," both a ",trim(identifier),group_scheme_namelist_idx(k,2), &
                                   ")%wall_act_configs(",group_scheme_namelist_idx(k,3),")%supers...wall option and a fluid_configs(",i,")%wall_act_configs(",j,")%super...wall ", &
                                   "option was set. This is not allowed, please provide only one create option (%supers...wall) for all fluids sputtering into ",config%target_group_id,"."
-                call wrong_input(msg,sim%my_id,"")
+                !call wrong_input(msg,sim%my_id,"")
               end if
               group_scheme_namelist_idx(k,:) = [2,i,j]
               group_scheme_set(k) = .true.
@@ -812,7 +801,7 @@ function wall_actions_from_config(sim, edge_element_template) result(wall_act_gr
       select case(trim(config%type))
       case("none") 
         cycle
-      case("fluid sputter")
+      case("physical sputter", "chemical sputter")
         do k=1,n_part_groups_max
           if(sputter_target_ids(k) == config%target_group_id) then
             idx_group = idx_offset + k
@@ -911,7 +900,7 @@ subroutine do_wall_act_group(this, sim, post_evolution)
   logical,               intent(in)       :: post_evolution !< whether this call is after the evolve particle groups call (.true.) or not (.false.)
 
   integer :: i, n_supers_tot, n_supers_child
-  real*8  :: total_yield, physical_yield, chemical_yield, yield_fraction
+  real*8  :: yield, yield_fraction
 
   !> if we're after the evolution, we should run part2part wall_actions
   if(post_evolution) then
@@ -928,23 +917,17 @@ subroutine do_wall_act_group(this, sim, post_evolution)
       if(sim%my_id == 0) write(*,"(3A)") '===== wall_action group: "fluid sputter to one" -> ',this%target_id,' ===== '
 
       ! calculating the partial yields and the total_yield
-      total_yield = 0.d0
-      physical_yield = 0.d0
-      chemical_yield = 0.d0
+      yield = 0.d0
       do i=1,size(this%wall_actions,1)
         call this%wall_actions(i)%calc_fluid_yield(sim)
-        total_yield = total_yield + this%wall_actions(i)%domain_integral*this%wall_actions(i)%weight_factor
-        physical_yield = physical_yield + this%wall_actions(i)%domain_integral_physical*this%wall_actions(i)%weight_factor
-        chemical_yield = chemical_yield + this%wall_actions(i)%domain_integral_chemical*this%wall_actions(i)%weight_factor
+        yield = yield + this%wall_actions(i)%domain_integral*this%wall_actions(i)%weight_factor
       end do
 
       ! determining the number of supers for the group
-      n_supers_tot = this%create_scheme%supers_to_create(sim%my_id,total_yield)
+      n_supers_tot = this%create_scheme%supers_to_create(sim%my_id, yield)
   
       if(sim%my_id == 0) then
-        write(*,"(A50,' = ',3es16.6)") "total sputter yield for this wall_act_group       ",total_yield
-        write(*,"(A50,' = ',3es16.6)") "physical sputter yield for this wall_act_group    ",physical_yield
-        write(*,"(A50,' = ',3es16.6)") "chemical sputter yield for this wall_act_group    ",chemical_yield
+        write(*,"(A50,' = ',3es16.6)") "total sputter yield for this wall_act_group       ",yield
         if (trim(this%create_scheme%scheme) == "num") write(*,"(A50,' = ',I12)") "supers_num                                        ", this%create_scheme%supers_num
         if (trim(this%create_scheme%scheme) == "weight") write(*,"(A50,' = ',es16.6)") "supers_weight                                     ", this%create_scheme%supers_weight
         if (trim(this%create_scheme%scheme) == "ratio") write(*,"(A50,' = ',es16.6)") "supers_ratio                                      ", this%create_scheme%supers_ratio
@@ -953,7 +936,7 @@ subroutine do_wall_act_group(this, sim, post_evolution)
 
       ! setting the number of supers for the children actions by equal distribution (at least 1)
       do i=1,size(this%wall_actions,1)
-        yield_fraction = this%wall_actions(i)%domain_integral*this%wall_actions(i)%weight_factor / total_yield
+        yield_fraction = this%wall_actions(i)%domain_integral*this%wall_actions(i)%weight_factor /yield
         n_supers_child = max(1,nint(n_supers_tot * yield_fraction))
         this%wall_actions(i)%create_scheme%supers_num = n_supers_child
       end do
@@ -1194,7 +1177,8 @@ subroutine fluid2part_action(this, sim)
 
         ! determine outcoming particle
         call single_self_interaction(this, sim, particle, this%rng(i_rng), diagnostics, E, "reflection")
-      case("fluid sputter")
+        particle%tag = "1"
+      case("physical sputter")
         ! The yield at a specific position is given by
         ! \[
         !   \int_v Y(E) f(v) dv
@@ -1242,6 +1226,10 @@ subroutine fluid2part_action(this, sim)
         !particle%weight = &
         !particle%weight * &
           !sputtering_yield / av_yield
+        particle%tag = "2"
+    case("chemical sputter")
+        call single_self_interaction(this, sim, particle, this%rng(i_rng), diagnostics, E, "thermal release", .true.)
+        particle%tag = "3"
       case default
         call wrong_interaction_type(this%type)
       end select
@@ -1420,7 +1408,7 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
   !   !!$omp end critical
   ! end if
 
-  if (trim(local_type) /= "pump") then
+  if (trim(local_type) /= "pump") then 
     ! Update the particle energy from the potential drop in the sheath
 #ifdef WITH_TiTe
     call sim%fields%calc_NeTeTi(sim%time, particle%i_elm, particle%st, particle%x(3), n_e=n_e, T_i=T_i, T_e=T_e)
@@ -1445,6 +1433,8 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
     
     !> storing this particle's contribution on a 2D edge element patch grid as diagnostic
     call particle_projection_diagnostic(this, sim, particle, E, (1-yield))
+    particle%tag = "4"
+
   case ("reflection")
     !> a particle can either bounce of the wall (fast_reflection=.true.) or be thermally released
     !> whether a particle reflects directly is determined through eckstein coefficients set for this goal
@@ -1453,8 +1443,10 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
     call rng%next(u)
     if (u(1) .le. fast_reflect_chance) then
       fast_reflection = .true.
+      particle%tag = "5"
     else
       fast_reflection = .false. 
+      particle%tag = "6"
     end if
     
     !> assume wall saturation (pumping implementation is done separately)
@@ -1473,7 +1465,7 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
       diagnostics(i_wall_flux_refl)   = diagnostics(i_wall_flux_refl) + particle%weight
       diagnostics(i_wall_heat_refl)   = diagnostics(i_wall_heat_refl) + particle%weight * E * EL_CHG
     else ! thermal release
-      E = (800.d0 + 273.d0) *K_BOLTZ/EL_CHG! must be in eV (800 degrees celsius)
+      E = 500 *K_BOLTZ/EL_CHG! must be in eV (500 K assumed)
     endif  
   case ("self sputter")
     ! use eckstein sputtering coefficients to determine both the sputter yield and resulting energy
@@ -1512,6 +1504,16 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
       energy_coeff = this%energy%interp(E,theta)
       E = energy_coeff * E
     end if
+    particle%tag = "7"
+
+  case ("thermal release")
+      
+    yield = 1.d0
+    !> storing this particle's contribution on a 2D edge element patch grid as diagnostic
+    call particle_projection_diagnostic(this, sim, particle, E, yield)
+    E =  500 *  K_BOLTZ/EL_CHG
+
+    particle%tag = "8"
 
   case default
     write(*,*) "ERROR: unknown single_self_interaction type",local_type
@@ -1588,8 +1590,6 @@ subroutine calc_fluid_yield(this,sim)
 
   ! determine integral over the domain
   call integrate_edge_elements(this%fluid_yield_integral, 11, this%domain_integral, this%res)
-  call integrate_edge_elements(this%fluid_yield_integral, 12, this%domain_integral_physical, this%res_physical)
-  call integrate_edge_elements(this%fluid_yield_integral, 13, this%domain_integral_chemical, this%res_chemical)
 
   this%yield_calculated = .true.
 end subroutine calc_fluid_yield
@@ -1636,7 +1636,7 @@ end function simple_potential_drop
 
 
 !> Integrate the sputtering yield over the distribution of incoming velocities.
-pure function fluid_sputtering_yield(coeff, T_eV, Z, theta) result(yield)
+pure function physical_sputtering_yield(coeff, T_eV, Z, theta) result(yield)
   use gauss
   class(eckstein_coeff_set), intent(in) :: coeff
   real*8,                    intent(in) :: T_eV  !< Plasma temperature in eV
@@ -1692,7 +1692,7 @@ pure function fluid_sputtering_yield(coeff, T_eV, Z, theta) result(yield)
   !   end do
   ! end do
   ! yield = yield / (2*n_interval**2)
-end function fluid_sputtering_yield
+end function physical_sputtering_yield
 
 function chemical_sputtering_yield(T_target, E_in, flux_in) result(yield)
   implicit none
@@ -1702,7 +1702,7 @@ function chemical_sputtering_yield(T_target, E_in, flux_in) result(yield)
   real*8 :: Q1, D1, E_TF1, ratio, Sn_E0, Ydam, Ydes, flux_judge
   real*8 :: c, c_sp3, Ytherm, Ysurf
 
-  ! constants for H-C chemical sputtering
+  ! constants for D-C chemical sputtering
   E_TF_H = 447.0d0
   Q_H = 0.1d0
   D_H = 125.0d0
@@ -1791,14 +1791,7 @@ subroutine project_sputter_vars_on_edge(this, sim)
     this%fluid_yield_integral%patch(i)%scalars(:,:) = -1
   end do
 
-  !if(sim%my_id .eq. 0 .and. mod(sim%istep_fluid,10) .eq. 0) then
-  !   write(filename,'(I05.5,A,A)')  sim%istep_fluid,'_',trim(this%name)
-  !   open(122, file=filename)
-  !end if
-
   do i_patch = 1, size(this%fluid_yield_integral%patch,1) !< different parts of edge domain
-    
-    !write(122,'(A,I3,2F8.4)') "# i_patch ", i_patch, R_axis, Z_axis
 
 #ifdef __GFORTRAN__
     !$omp parallel do default(shared) &
@@ -1848,35 +1841,15 @@ subroutine project_sputter_vars_on_edge(this, sim)
       select case(trim(this%type))
       case("wall recomb")
         yield = 1.d0 !<assuming complete wall saturation
-        physical_yield = 0.d0
-        chemical_yield = 0.d0
-      case("fluid sputter")
-        if(this%use_physical_sputter) then
-          physical_yield =  fluid_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 0.d0)
-        else 
-          physical_yield = 0.d0
-        end if
-
-        if(this%use_chemical_sputter) then
-          chemical_yield = chemical_sputtering_yield(500 * K_BOLTZ/EL_CHG, 5*T_e * K_BOLTZ/EL_CHG, Gamma_d)
-        else 
-          chemical_yield = 0.d0
-        end if
-        yield = physical_yield + chemical_yield
+      case("physical sputter")
+        yield = physical_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 0.d0)
+      case("chemical sputter")
+        yield = chemical_sputtering_yield(500 * K_BOLTZ/EL_CHG, 5*T_e * K_BOLTZ/EL_CHG, Gamma_d)
       case default
         call wrong_interaction_type(trim(this%type))
       end select
 
       this%fluid_yield_integral%patch(i_patch)%scalars(i,11) = Gamma_d * this%delta_t * yield !< particles / m^2 in this timestep
-      this%fluid_yield_integral%patch(i_patch)%scalars(i,12) = Gamma_d * this%delta_t * physical_yield
-      this%fluid_yield_integral%patch(i_patch)%scalars(i,13) = Gamma_d * this%delta_t * chemical_yield
-
-      !if(sim%my_id .eq. 0) then
-      !!$omp critical
-      ! write(122,'(I5,3F8.4,3ES12.5,10ES12.4, 3ES12.4)')  i, this%fluid_yield_integral%patch(i_patch)%xyz(1:3,i),  \
-      !              this%fluid_yield_integral%patch(i_patch)%scalars(i,11:13), n_e, T_e, vpar, c_s, cos_alpha, c_angle,  Gamma_d, yield, physical_yield, chemical_yield, vector_normal(1:3)         
-      !!$omp end critical
-      !end if
 
       if (this%do_wall_projection) then
         !associate (sc => this%wall_projection%patch(i_patch)%scalars) ! associate is nice to make more readable but cannot be used in OMP before version 4.5 (so not in OneAPI's OMP)
@@ -1910,20 +1883,11 @@ subroutine project_sputter_vars_on_edge(this, sim)
         this%wall_projection%patch(i_patch)%scalars(i, n_project_general+7) = &
         this%wall_projection%patch(i_patch)%scalars(i, n_project_general+7) + &
           Gamma_d * this%delta_t * yield
-    
-        this%wall_projection%patch(i_patch)%scalars(i, n_project_general+8) = &
-        this%wall_projection%patch(i_patch)%scalars(i, n_project_general+8) + &
-          Gamma_d * this%delta_t * physical_yield
-        
-        this%wall_projection%patch(i_patch)%scalars(i, n_project_general+9) = &
-        this%wall_projection%patch(i_patch)%scalars(i, n_project_general+9) + &
-          Gamma_d * this%delta_t * chemical_yield
         !end associate
       end if
     end do
     !$omp end parallel do
   end do
-  !close(122)
 
 end subroutine project_sputter_vars_on_edge
 

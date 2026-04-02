@@ -117,9 +117,6 @@ subroutine configure_particle_groups(sim)
       sim%groups(i)%kin_bg_coll_type       =  config%kin_bg_coll_type
       sim%groups(i)%homma2020_alpha        =  config%homma2020_alpha
       sim%groups(i)%ics_group_idx          =  config%ics_group_idx
-
-      write(6,*) 'llzz-00', i, config%kin_bg_coll_type
-      write(6,*) 'llzz-01', i, sim%groups(i)%kin_bg_coll_type 
     
       if (len_trim(config%atom_data_suffix) > 0) then
         sim%groups(i)%ad =  read_adf11(sim%my_id, trim(part_group_configs(i)%atom_data_suffix), directory=adas_dir)

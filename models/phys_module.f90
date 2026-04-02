@@ -1017,7 +1017,7 @@ module phys_module
   !> Contains settings to define one wall_action (see mod_particle_wall_interaction for implementation
   !> and the wiki for documentation at https://jorek.eu/wiki/doku.php?id=particles:wall_actions)
   type :: type_wall_act_config
-    character(len=20) :: type               !< type of the wall interaction, namely "self sputter" (e.g. W -> W), "fluid sputter" (e.g. fluid D+ -> W), "other sputter" (e.g. kinetic N -> W), "reflection" (e.g. kinetic D -> D) or "wall recomb" (e.g. kinetic D+ -> D)
+    character(len=20) :: type               !< type of the wall interaction, namely "self sputter" (e.g. W -> W), "physical sputter" (e.g. fluid D+ -> W), "chemical sputter" (e.g. fluid D+ -> W), "other sputter" (e.g. kinetic N -> W), "reflection" (e.g. kinetic D -> D) or "wall recomb" (e.g. kinetic D+ -> D)
     character(len=3)  :: target_group_id    !< which particle group (as identified by its %id) this wall interaction affects
     real*8            :: weight_factor      !< additional weight factor of the yield (e.g. useful to simulate a non-unity wall albedo for a wall that partially absorbs incoming flux)
     logical           :: only_in_polygon    !< whether to execute this wall_action only on the specified polygon (.true.) or on the full domain (.false.)
@@ -1032,8 +1032,6 @@ module phys_module
     !< if none of these three above options are set, the supers_ratio_wall method
     !< will be used, with its default value being set by supers_ratio_wall_default in mod_particle_wall_interaction.f90
 
-    logical           :: use_physical_sputter
-    logical           :: use_chemical_sputter
     logical           :: use_thompson
     logical           :: use_Yn_func
 

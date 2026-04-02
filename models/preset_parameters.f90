@@ -915,8 +915,6 @@ part_group_configs(:)%use_kin_bg_collisions  = .false.
 part_group_configs(:)%kin_bg_coll_type       = 'Homma2020'
 part_group_configs(:)%homma2020_alpha        = 1.5d0
 part_group_configs(:)%ics_group_idx          = -1
-write(6,*) 'llzz--22', part_group_configs(:)%kin_bg_coll_type
-write(6,*) 'llzz--33', part_group_configs(:)%use_kin_bg_collisions
 
 !----- specific to rep 
 part_group_configs(:)%num_re                 = 0.d0
@@ -961,8 +959,6 @@ do i=1, n_part_groups_max
     !< if none of these three above options are set, the supers_ratio_wall method
     !< will be used, with its default value being set by supers_ratio_wall_default in mod_particle_wall_interaction.f90
 
-    part_group_configs(i)%wall_act_configs(j)%use_physical_sputter  = .false.
-    part_group_configs(i)%wall_act_configs(j)%use_chemical_sputter  = .false.
     part_group_configs(i)%wall_act_configs(j)%use_thompson          = .true.
     part_group_configs(i)%wall_act_configs(j)%use_Yn_func           = .true.
 
@@ -995,10 +991,8 @@ do i=1, n_fluid_groups_max
     fluid_configs(i)%wall_act_configs(j)%supers_weight_wall = -1.d0
     fluid_configs(i)%wall_act_configs(j)%supers_ratio_wall  = -1.d0
 
-    fluid_configs(i)%wall_act_configs(j)%use_physical_sputter  = .false.
-    fluid_configs(i)%wall_act_configs(j)%use_chemical_sputter  = .false.
-    fluid_configs(i)%wall_act_configs(j)%use_thompson          = .false.
-    fluid_configs(i)%wall_act_configs(j)%use_Yn_func           = .false.
+    fluid_configs(i)%wall_act_configs(j)%use_thompson          = .true.
+    fluid_configs(i)%wall_act_configs(j)%use_Yn_func           = .true.
 
     fluid_configs(i)%wall_act_configs(j)%write_vtk             = .false.
   enddo

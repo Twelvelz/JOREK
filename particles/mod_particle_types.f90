@@ -60,6 +60,7 @@ module mod_particle_types
     integer*4 :: i_elm = 0        !< index in element_list. Negative indices indicate lost particles on the edge of - that element.
     integer*4 :: i_life = 0       !< particle lifetime index (i.e. is this still the same particle?)
     real*4    :: t_birth = 0.0    !< birth time of this particle
+    character :: tag = " " 
     !< zero means lost without location specification.
   contains
     procedure :: copy => copy_particle

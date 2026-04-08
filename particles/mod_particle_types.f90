@@ -60,7 +60,7 @@ module mod_particle_types
     integer*4 :: i_elm = 0        !< index in element_list. Negative indices indicate lost particles on the edge of - that element.
     integer*4 :: i_life = 0       !< particle lifetime index (i.e. is this still the same particle?)
     real*4    :: t_birth = 0.0    !< birth time of this particle
-    character :: tag = " " 
+    integer*4 :: tag = 0 
     !< zero means lost without location specification.
   contains
     procedure :: copy => copy_particle
@@ -178,6 +178,7 @@ contains
     out%i_elm  = in%i_elm
     out%i_life = in%i_life
     out%t_birth= in%t_birth
+    out%tag    = in%tag
   end subroutine copy_particle_base
 
   !> Copy one particle of a type kinetic_leapfrog to another
@@ -192,6 +193,7 @@ contains
     out%t_birth = in%t_birth
     out%v       = in%v
     out%q       = in%q
+    out%tag    = in%tag
   end subroutine copy_particle_kinetic_leapfrog
 
   !> Copy a descendant of particle_base into another descendant of particle_base
@@ -211,6 +213,7 @@ contains
     particle_out%i_elm    = particle_in%i_elm
     particle_out%i_life   = particle_in%i_life
     particle_out%t_birth  = particle_in%t_birth
+    particle_out%tag      = particle_in%tag
 
     select type (p_out => particle_out)
     type is (particle_fieldline)
@@ -616,7 +619,7 @@ contains
 
 !> Allocate and re-order a particle list in arrays
 subroutine particle_arrays_from_list(particle_list,n_particles,i_elm_arr,i_life_arr,&
-q_arr,t_birth_arr,weight_arr,v_1d_arr,E_arr,mu_arr,vpar_arr,B_norm_arr,vpar_m_arr,&
+q_arr,t_birth_arr,weight_arr,tag_arr,v_1d_arr,E_arr,mu_arr,vpar_arr,B_norm_arr,vpar_m_arr,&
 st_arr,x_arr,B_hat_prev_arr,v_2d_arr,x_m_arr,Astar_m_arr,Astar_k_arr,&
 Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,dAstar_k_arr,particle_type_str)
   implicit none
@@ -626,6 +629,7 @@ Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,dAstar_k_arr,particle_type_str)
   integer*4,dimension(:),    allocatable,intent(out) :: i_elm_arr,i_life_arr
   integer*4,dimension(:),    allocatable,intent(out) :: q_arr
   real*4,   dimension(:),    allocatable,intent(out) :: t_birth_arr
+  integer*4,dimension(:),    allocatable,intent(out) :: tag_arr
   real*8,   dimension(:),    allocatable,intent(out) :: weight_arr,v_1d_arr
   real*8,   dimension(:),    allocatable,intent(out) :: E_arr,mu_arr,vpar_arr
   real*8,   dimension(:),    allocatable,intent(out) :: B_norm_arr,vpar_m_arr,Bn_k_arr
@@ -643,6 +647,7 @@ Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,dAstar_k_arr,particle_type_str)
   allocate(st_arr(size(particle_list(1)%st,1),n_particles))
   allocate(weight_arr(n_particles)); allocate(i_elm_arr(n_particles));
   allocate(i_life_arr(n_particles)); allocate(t_birth_arr(n_particles));
+  allocate(tag_arr(n_particles))
   select type(p=>particle_list(1))
   type is (particle_fieldline)
     allocate(v_1d_arr(n_particles))
@@ -687,7 +692,7 @@ Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,dAstar_k_arr,particle_type_str)
     particle_type_str = "particle_gc_relativistic";
   end select
   !$omp parallel do default(none) private(ii) firstprivate(n_particles) & 
-  !$omp shared(x_arr,st_arr,t_birth_arr,weight_arr,i_elm_arr,i_life_arr, particle_list)
+  !$omp shared(x_arr,st_arr,t_birth_arr,weight_arr,i_elm_arr,i_life_arr, tag_arr, particle_list)
   do ii=1,n_particles
     x_arr(:,ii)             = particle_list(ii)%x 
     st_arr(:,ii)            = particle_list(ii)%st
@@ -695,6 +700,7 @@ Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,dAstar_k_arr,particle_type_str)
     weight_arr(ii)          = particle_list(ii)%weight 
     i_elm_arr(ii)           = particle_list(ii)%i_elm
     i_life_arr(ii)          = particle_list(ii)%i_life
+    tag_arr(ii)             = particle_list(ii)%tag
   enddo
   !$omp end parallel do
 
@@ -822,6 +828,7 @@ subroutine initialize_particle_to_zero(particle)
   particle%i_elm=0;    particle%i_life=0; 
   particle%t_birth=0.; particle%weight=0d0;
   particle%st=0d0;     particle%x=0d0;
+  particle%tag=0
   select type (p=>particle)
     type is (particle_fieldline)
     p%v=0d0; p%B_hat_prev=0d0;
@@ -846,14 +853,14 @@ end subroutine initialize_particle_to_zero
 
 ! fille a particle list from arrays
 subroutine particle_list_from_arrays(n_particles,particle_list,ierr,&
-i_elm_arr,i_life_arr,t_birth_arr,weight_arr,x_arr,st_arr,q_arr,&
+i_elm_arr,i_life_arr,t_birth_arr,weight_arr,tag_arr,x_arr,st_arr,q_arr,&
 v_1d_arr,E_arr,mu_arr,vpar_arr,B_norm_arr,vpar_m_arr,B_hat_prev_arr,&
 v_2d_arr,x_m_arr,Astar_m_arr,Astar_k_arr,Bn_k_arr,dBn_k_arr,&
 Bnorm_k_arr,E_k_arr,dAstar_k_arr)
   implicit none
   !> inputs:
   integer, intent(in)                                          :: n_particles
-  integer*4,dimension(:),    allocatable,intent(in),optional   :: i_elm_arr,i_life_arr
+  integer*4,dimension(:),    allocatable,intent(in),optional   :: i_elm_arr,i_life_arr,tag_arr
   real*4,   dimension(:),    allocatable,intent(in),optional   :: t_birth_arr
   real*8,   dimension(:),    allocatable,intent(in),optional   :: weight_arr
   real*8,   dimension(:,:),  allocatable,intent(in),optional   :: x_arr,st_arr
@@ -878,7 +885,7 @@ Bnorm_k_arr,E_k_arr,dAstar_k_arr)
   endif 
   !> store particle base arrays
   !$omp parallel do default(none) private(ii) firstprivate(n_particles) &
-  !$omp shared(particle_list,i_elm_arr,i_life_arr,t_birth_arr,weight_arr,&
+  !$omp shared(particle_list,i_elm_arr,i_life_arr,t_birth_arr,weight_arr, tag_arr,&
   !$omp st_arr,x_arr,v_1d_arr,B_hat_prev_arr,E_arr,mu_arr,q_arr,vpar_arr,&
   !$omp B_norm_arr,x_m_arr,vpar_m_arr,Astar_m_arr,Astar_k_arr,dAstar_k_arr,&
   !$omp Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,v_2d_arr)
@@ -889,6 +896,7 @@ Bnorm_k_arr,E_k_arr,dAstar_k_arr)
     if(present(weight_arr))       then; if(allocated(weight_arr))  particle_list(ii)%weight   = weight_arr(ii);  endif;
     if(present(st_arr))           then; if(allocated(st_arr))      particle_list(ii)%st       = st_arr(:,ii);    endif;
     if(present(x_arr))            then; if(allocated(x_arr))       particle_list(ii)%x        = x_arr(:,ii);     endif;
+    if(present(tag_arr))          then; if(allocated(tag_arr))     particle_list(ii)%tag      = tag_arr(ii);     endif;
   enddo
   !$omp end parallel do
 
@@ -987,13 +995,13 @@ end subroutine particle_list_from_arrays
 
 !> deallocate all particle arrays
 subroutine deallocate_particle_arrays(n_particles,i_elm_arr,i_life_arr,q_arr,&
-t_birth_arr,weight_arr,v_1d_arr,E_arr,mu_arr,vpar_arr,B_norm_arr,vpar_m_arr,&
+t_birth_arr,weight_arr,tag_arr,v_1d_arr,E_arr,mu_arr,vpar_arr,B_norm_arr,vpar_m_arr,&
 st_arr,x_arr,B_hat_prev_arr,v_2d_arr,x_m_arr,Astar_m_arr,Astar_k_arr,&
 Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,dAstar_k_arr)
   implicit none 
   !> inputs-outputs:
   integer,intent(inout)                                :: n_particles
-  integer*4,dimension(:),    allocatable,intent(inout) :: i_elm_arr,i_life_arr
+  integer*4,dimension(:),    allocatable,intent(inout) :: i_elm_arr,i_life_arr,tag_arr
   integer*4,dimension(:),    allocatable,intent(inout) :: q_arr
   real*4,   dimension(:),    allocatable,intent(inout) :: t_birth_arr
   real*8,   dimension(:),    allocatable,intent(inout) :: weight_arr,v_1d_arr,E_arr,mu_arr
@@ -1008,6 +1016,7 @@ Bn_k_arr,dBn_k_arr,Bnorm_k_arr,E_k_arr,dAstar_k_arr)
   !> deallocates
   if(allocated(i_elm_arr))         deallocate(i_elm_arr)
   if(allocated(i_life_arr))        deallocate(i_life_arr)
+  if(allocated(tag_arr))           deallocate(tag_arr)
   if(allocated(t_birth_arr))       deallocate(t_birth_arr)
   if(allocated(weight_arr))        deallocate(weight_arr)
   if(allocated(st_arr))            deallocate(st_arr)

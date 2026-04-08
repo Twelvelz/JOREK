@@ -1177,7 +1177,7 @@ subroutine fluid2part_action(this, sim)
 
         ! determine outcoming particle
         call single_self_interaction(this, sim, particle, this%rng(i_rng), diagnostics, E, "reflection")
-        particle%tag = "1"
+        particle%tag = 1
       case("physical sputter")
         ! The yield at a specific position is given by
         ! \[
@@ -1226,10 +1226,10 @@ subroutine fluid2part_action(this, sim)
         !particle%weight = &
         !particle%weight * &
           !sputtering_yield / av_yield
-        particle%tag = "2"
-    case("chemical sputter")
+        particle%tag = 2
+      case("chemical sputter")
         call single_self_interaction(this, sim, particle, this%rng(i_rng), diagnostics, E, "thermal release", .true.)
-        particle%tag = "3"
+        particle%tag = 3
       case default
         call wrong_interaction_type(this%type)
       end select
@@ -1433,7 +1433,7 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
     
     !> storing this particle's contribution on a 2D edge element patch grid as diagnostic
     call particle_projection_diagnostic(this, sim, particle, E, (1-yield))
-    particle%tag = "4"
+    particle%tag = 4
 
   case ("reflection")
     !> a particle can either bounce of the wall (fast_reflection=.true.) or be thermally released
@@ -1443,10 +1443,10 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
     call rng%next(u)
     if (u(1) .le. fast_reflect_chance) then
       fast_reflection = .true.
-      particle%tag = "5"
+      particle%tag = 5
     else
       fast_reflection = .false. 
-      particle%tag = "6"
+      particle%tag = 6
     end if
     
     !> assume wall saturation (pumping implementation is done separately)
@@ -1491,6 +1491,8 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
       call rng%next(u)
       ! Option below to remove the highest 2% of the distribution by clipping u (hacky)
       ! u = min(u, 0.98d0)
+      this%E_dist%E_b = 8.0
+      this%E_dist%n   = 3
       E = sample_dist(this%E_dist, u(1))
     else
       !> avoiding numerical issues with E being too small to calculate energy_coeff
@@ -1504,16 +1506,16 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
       energy_coeff = this%energy%interp(E,theta)
       E = energy_coeff * E
     end if
-    particle%tag = "7"
+    particle%tag = 7
 
   case ("thermal release")
       
     yield = 1.d0
     !> storing this particle's contribution on a 2D edge element patch grid as diagnostic
     call particle_projection_diagnostic(this, sim, particle, E, yield)
-    E =  500 *  K_BOLTZ/EL_CHG
+    E = 500 *K_BOLTZ/EL_CHG
 
-    particle%tag = "8"
+    particle%tag = 8
 
   case default
     write(*,*) "ERROR: unknown single_self_interaction type",local_type

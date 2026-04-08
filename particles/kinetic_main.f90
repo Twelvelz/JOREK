@@ -43,6 +43,7 @@ use mod_coupling_settings, only: use_kin_recomb_global
 use mod_initialise_particles
 use equil_info
 use mod_output_file_routines, only: write_to_outputfile
+use mod_sampling
 
 use phys_module, only: index_now
 use phys_module, only: tstep,tstep_n,restart_particles, restart, t_start, nout
@@ -67,7 +68,7 @@ type(event)                                       :: gas_puff_event, gas_puff2_e
 type(event), target                               :: project_jorek_feedback, jorek_stepper_event
 type(pcg32_rng), dimension(:), allocatable        :: rng
 type(count_action)                                :: counter
-type(projection), target                          :: jorek_feedback
+type(projection), target                          :: jorek_feedback, project_density
 type(jorek_timestep_action), target               :: jorek_stepper
 type(type_edge_domain), allocatable, dimension(:) :: edge_domains
 type(edge_elements)                               :: edge_elm_template
@@ -97,6 +98,8 @@ class(type_rng), dimension(:), allocatable :: wall_rng
 integer :: n_particles_local
 
 character(len=100) :: header_line
+
+real*8 :: ran(1)
 
 !***********************************************************************
 !*                            initialisation                            *
@@ -220,6 +223,14 @@ jorek_feedback = new_projection(sim%fields%node_list, sim%fields%element_list, &
                                 do_dirichlet=apply_dirichlet_proj)
 aux_node_list => jorek_feedback%node_list
 
+project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
+                     filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
+                     filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
+                     f=[proj_f(proj_tag, group = 2), proj_f(proj_one, group = 2)], &
+                     fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5, do_dirichlet=apply_dirichlet_proj)
+
+call with(sim, project_density)
+
 !> define feedback size dependent on the number of variables required for coupling
 allocate(jorek_feedback%rhs(n_order+1, n_vertex_max, sim%fields%element_list%n_elements, n_tor, n_aux_var))
 
@@ -256,6 +267,23 @@ do while (.not. sim%stop_now)
     write(*,*) "tstep_fluid_si : ",sim%tstep_fluid_si
   endif
 
+
+! if(sim%my_id .eq. 0) then
+!   write(6,*) 'llzz--abc', size(wall_act_groups,1), 500 *  K_BOLTZ/EL_CHG
+!   write(6,*) wall_act_groups(3)%wall_actions(2)%name
+!   write(6,*) wall_act_groups(3)%wall_actions(2)%yield%lambda
+!   wall_act_groups(3)%wall_actions(2)%E_dist%E_b = 8.0
+!   wall_act_groups(3)%wall_actions(2)%E_dist%n = 3
+!
+!   do i=1, 1000
+!     call rng(1)%next(ran)
+!     write(6,*) 'llzz-aa', i, ran(1)*200, physical_sputtering_yield(wall_act_groups(3)%wall_actions(2)%yield, ran(1)*200, 4, 0.d0)
+!     write(6,*) 'llzz-bb', i, ran(1)*200, wall_act_groups(3)%wall_actions(2)%yield%interp(ran(1)*200, 0.d0)
+!     write(6,*) 'llzz-cc', i, ran(1)*200, wall_act_groups(3)%wall_actions(2)%energy%interp(ran(1)*200, 0.d0)
+!     write(6,*) 'llzz-dd', i, ran(1), sample_dist(wall_act_groups(3)%wall_actions(2)%E_dist, ran(1)) 
+!   end do
+!
+! end if
 
   ! --- Interactions that happen on the fluid timestep (creating kinetic particles)
 

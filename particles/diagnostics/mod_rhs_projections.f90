@@ -10,7 +10,7 @@ implicit none
 private
 
 public proj_f, proj_f_interface, proj_one, proj_q, proj_vR, proj_vZ, proj_vPhi, proj_Ekin, proj_Ekin_keV, proj_jR, proj_jZ, proj_jPhi
-public proj_R, proj_min_rad, proj_Z,proj_v,proj_vpar,proj_mu,proj_pow
+public proj_R, proj_min_rad, proj_Z,proj_v,proj_vpar,proj_mu,proj_pow, proj_tag
 
 interface
   function proj_f_interface(sim, group, particle)
@@ -42,6 +42,18 @@ contains
     real*8 :: proj_one
     proj_one = 1.d0
   end function proj_one
+
+  pure function proj_tag(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_tag
+    if(particle%tag .eq. 3) then
+      proj_tag = 1.d0
+    else
+      proj_tag = 0.d0
+    end if
+  end function proj_tag
 
   pure function proj_R(sim,group,particle)
     type(particle_sim), intent(in) :: sim

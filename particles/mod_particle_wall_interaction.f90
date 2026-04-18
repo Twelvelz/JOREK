@@ -91,6 +91,7 @@ module mod_particle_wall_interaction
     type(thompson_dist)                   :: E_dist = thompson_dist(E_b = 8.7d0, n=2) !< produces energies in eV (value for W default)
     logical :: use_thompson = .false. !< Use a thompson distribution for the energy of sputtered particles
     logical :: use_Yn_func  = .false. !< Use Ecksteins interpolating functions instead of interpolating manually
+    logical :: use_new_thompson = .true. !< Use a new thompson distribution for sputtered particles, the sputtered energy is calculated according to the impact energy instaed of manually specified.
     
     class(type_rng), dimension(:), allocatable :: rng !< one RNG per openmp thread
 
@@ -395,10 +396,15 @@ subroutine construct_wall_action(this, sim, origin_group, config, edge_element_t
   if(.not. allocated(extra_proj_scalar_names)) allocate(extra_proj_scalar_names(0))
   if(this%n_project_part < 0) this%n_project_part = n_project_general
 
-  if(this%type .eq. 'physical sputter') then
+  if(this%type .eq. 'physical sputter' .or. this%type .eq. 'self sputter' .or. this%type .eq. 'reflection') then
     call this%load_eckstein_data(sim)
     this%use_thompson         = config%use_thompson
     this%use_Yn_func          = config%use_Yn_func
+    this%use_new_thompson     = config%use_new_thompson
+    if (this%use_thompson .and. this%use_new_thompson) then
+      write(msg,"(A)") "you cannot use both the new and old thompson distribution at the same time, please choose one of the options"
+      call wrong_input(msg, sim%my_id, identifier)
+    end if
   end if
 
   ! initialising the edge_element objects from the template
@@ -880,7 +886,7 @@ subroutine load_eckstein_data(this, sim)
   ! reading the yield data
   call this%yield%read()
 
-  if (.not. this%use_thompson) then ! use eckstein coefficients
+  if ((this%use_thompson .or.this%use_new_thompson) .eq. .false. ) then ! use eckstein coefficients
     ! setting the energy object
     this%energy%Z_ion    = Z_origin
     this%energy%Z_target = Z_target
@@ -1354,7 +1360,7 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
   logical,           optional,             intent(in)    :: weight_preadjusted !< whether the weight was already adjusted beforehand to take the yield into account (true) or not (false, default)
 
   real*8 :: n_e, T_e, T_i, theta
-  real*8 :: E !<[eV] particle energy. E is in [eV] in this subroutine, because of eckstein coeffs.
+  real*8 :: E, E_impact, Es !<[eV] particle energy. E is in [eV] in this subroutine, because of eckstein coeffs.
   real*8 :: vector_normal(3)
   logical :: fast_reflection !< whether the reflection is a fast reflection or a thermal desorption (not that release is instant, but the energy of the reflected particle is different)
   real*8 :: yield, energy_coeff, Te_eV, Ti_eV, fast_reflect_chance, v_new
@@ -1457,15 +1463,29 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
 
     !> determine new energy
     if (fast_reflection) then
-      ! still some energy and momentum can be lost at the reflection against the wall, this is modelled using another set of eckstein coefficients
-      energy_coeff = this%energy%interp(E,theta)
-      E = energy_coeff * E
+      if (this%use_thompson) then
+        call rng%next(u)
+        this%E_dist%E_b = 8.0
+        this%E_dist%n   = 3
+        E = sample_dist(this%E_dist, u(1))
+        !particle%tag = 9
+      else if (this%use_new_thompson) then
+        Es = get_surface_binding_energy(sim%groups(this%target_group)%Z)
+        E_impact = E
+        call Thompson_new(E_impact, rng, Es, E)
+        !particle%tag = 10
+      else
+        ! still some energy and momentum can be lost at the reflection against the wall, this is modelled using another set of eckstein coefficients
+        energy_coeff = this%energy%interp(E,theta)
+        E = energy_coeff * E
+        !particle%tag = 11
+      end if
 
       ! since we have wall_flux_in, and wall_flux_in = wall_flux_refl + wall_flux_therm, we also know wall_flux_thermal. Similarly we know wall_heat_thermal
       diagnostics(i_wall_flux_refl)   = diagnostics(i_wall_flux_refl) + particle%weight
       diagnostics(i_wall_heat_refl)   = diagnostics(i_wall_heat_refl) + particle%weight * E * EL_CHG
     else ! thermal release
-      E = 500 *K_BOLTZ/EL_CHG! must be in eV (500 K assumed)
+      E = 500 *K_BOLTZ/EL_CHG * 1.5 ! must be in eV (500 K assumed)
     endif  
   case ("self sputter")
     ! use eckstein sputtering coefficients to determine both the sputter yield and resulting energy
@@ -1489,11 +1509,13 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
     !> determining the energy of the particle post sputtering
     if (this%use_thompson) then
       call rng%next(u)
-      ! Option below to remove the highest 2% of the distribution by clipping u (hacky)
-      ! u = min(u, 0.98d0)
       this%E_dist%E_b = 8.0
       this%E_dist%n   = 3
       E = sample_dist(this%E_dist, u(1))
+    else if (this%use_new_thompson) then
+      Es = get_surface_binding_energy(sim%groups(this%target_group)%Z)
+      E_impact = E
+      call Thompson_new(E_impact, rng, Es, E)
     else
       !> avoiding numerical issues with E being too small to calculate energy_coeff
       if (E < this%energy%E_threshold + 1d0) then
@@ -1513,7 +1535,7 @@ subroutine single_self_interaction(this, sim, particle, rng, diagnostics, E_in, 
     yield = 1.d0
     !> storing this particle's contribution on a 2D edge element patch grid as diagnostic
     call particle_projection_diagnostic(this, sim, particle, E, yield)
-    E = 500 *K_BOLTZ/EL_CHG
+    E = 500 *K_BOLTZ/EL_CHG * 1.5
 
     particle%tag = 8
 
@@ -2110,6 +2132,99 @@ subroutine particle_projection_diagnostic(this, sim, particle, E, sputtering_yie
   !end associate
 end subroutine particle_projection_diagnostic
 
+!> Get surface binding energy
+pure function get_surface_binding_energy(Z_imp) result(Es)
+  integer, intent(in) :: Z_imp
+  real*8 :: Es  ! surface binding energy (eV)
+  
+  select case(Z_imp)
+  case(74) ! W
+    Es = 8.9931d0
+  case(6)  ! C
+    Es = 7.42d0
+  case(42) ! Mo
+    Es = 6.83d0
+  case(26) ! Fe
+    Es = 4.29d0
+  case(28) ! Ni
+    Es = 4.44d0
+  case(29) ! Cu
+    Es = 3.49d0
+  case(13) ! Al
+    Es = 3.36d0
+  case(14) ! Si
+    Es = 4.70d0
+  case default
+    ! Use semi-empirical formula for other materials
+    Es = 0.5d0 * atomic_weights(Z_imp) / 1000.0d0  ! eV, approximate relation
+  end select
+end function get_surface_binding_energy
+
+!> Get surface coordination number
+pure function get_ns(Z_imp) result(ns)
+  integer, intent(in) :: Z_imp
+  real*8 :: ns   ! surface coordination number
+  
+  select case(Z_imp)
+  case(74) ! W
+    ns = 0.06325d0
+  case(6)  ! C
+    ns = 0.11286d0
+  case(42) ! Mo
+    ns = 0.075d0
+  case(26) ! Fe
+    ns = 0.085d0
+  case default
+    ns = 0.1d0  ! Default value
+  end select
+end function get_ns
+
+!> Thompson energy distribution for sputtered particles
+subroutine Thompson_new(E_in, rng, Es, E)
+  implicit none
+  
+  real*8, intent(in)                    :: E_in    !< impact energy [eV]
+  class(type_rng)                       :: rng     !< Random number generator
+  real*8, intent(in)                    :: Es      !< Surface binding energy [eV]
+  real*8, intent(out)                   :: E       !< Energy of sputtered particle [eV]
+  
+  real*8 :: rng_samples(2)  !< Two random numbers for rejection sampling
+  real*8 :: P_max, P, E_test
+  
+  
+  ! Generate random energy from Thompson distribution
+  ! Probability density function: f(E) = E / (E + Es)^3
+  
+  ! Maximum of f(E) occurs at E = Es/2
+  ! f_max = f(Es/2) = (Es/2) / (Es/2 + Es)^3 = (Es/2) / (3Es/2)^3 = 1/(27Es^2)
+  if (Es > 0.0d0) then
+    P_max = 1.0d0 / (27.0d0 * Es**2)
+  else
+    P_max = 1.0d0  ! Avoid division by zero if Es=0
+  end if
+  
+  ! Use rejection method to sample from Thompson distribution
+  rejection_loop: do
+    ! Get two random numbers from the RNG
+    call rng%next(rng_samples)
+    
+    ! First random number determines trial energy (uniform in [0, E_in])
+    E_test = rng_samples(1) * E_in
+    
+    ! Calculate probability density at trial energy
+    if (E_test > 0.0d0 .and. Es > 0.0d0) then
+      P = E_test / (E_test + Es)**3
+    else
+      P = 0.0d0
+    end if
+    
+    ! Second random number determines acceptance/rejection
+    if (rng_samples(2) * P_max < P) then
+      E = E_test
+      exit rejection_loop
+    end if
+  end do rejection_loop
+end subroutine Thompson_new
 
 subroutine write_wall_project_vtk(this, sim)
   use mpi_mod

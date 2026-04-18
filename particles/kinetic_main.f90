@@ -226,7 +226,8 @@ aux_node_list => jorek_feedback%node_list
 project_density = new_projection(sim%fields%node_list, sim%fields%element_list, &
                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
-                     f=[proj_f(proj_tag, group = 2), proj_f(proj_one, group = 2)], &
+                     f=[proj_f(proj_tag2, group = 2), proj_f(proj_tag3, group = 2), proj_f(proj_tag7, group = 2), proj_f(proj_one, group = 2), &
+                        proj_f(proj_tag1, group = 1), proj_f(proj_tag5, group = 1), proj_f(proj_tag6, group = 1), proj_f(proj_one, group = 1)], &
                      fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5, do_dirichlet=apply_dirichlet_proj)
 
 call with(sim, project_density)

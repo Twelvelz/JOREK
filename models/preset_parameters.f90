@@ -960,6 +960,7 @@ do i=1, n_part_groups_max
     !< will be used, with its default value being set by supers_ratio_wall_default in mod_particle_wall_interaction.f90
 
     part_group_configs(i)%wall_act_configs(j)%use_thompson          = .true.
+    part_group_configs(i)%wall_act_configs(j)%use_new_thompson      = .true.
     part_group_configs(i)%wall_act_configs(j)%use_Yn_func           = .true.
 
     part_group_configs(i)%wall_act_configs(j)%write_vtk             = .true.
@@ -992,6 +993,7 @@ do i=1, n_fluid_groups_max
     fluid_configs(i)%wall_act_configs(j)%supers_ratio_wall  = -1.d0
 
     fluid_configs(i)%wall_act_configs(j)%use_thompson          = .true.
+    fluid_configs(i)%wall_act_configs(j)%use_new_thompson      = .true.
     fluid_configs(i)%wall_act_configs(j)%use_Yn_func           = .true.
 
     fluid_configs(i)%wall_act_configs(j)%write_vtk             = .false.

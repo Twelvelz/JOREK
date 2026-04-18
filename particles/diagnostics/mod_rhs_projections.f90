@@ -10,7 +10,7 @@ implicit none
 private
 
 public proj_f, proj_f_interface, proj_one, proj_q, proj_vR, proj_vZ, proj_vPhi, proj_Ekin, proj_Ekin_keV, proj_jR, proj_jZ, proj_jPhi
-public proj_R, proj_min_rad, proj_Z,proj_v,proj_vpar,proj_mu,proj_pow, proj_tag
+public proj_R, proj_min_rad, proj_Z,proj_v,proj_vpar,proj_mu,proj_pow, proj_tag1, proj_tag2, proj_tag3, proj_tag5, proj_tag6, proj_tag7
 
 interface
   function proj_f_interface(sim, group, particle)
@@ -43,17 +43,77 @@ contains
     proj_one = 1.d0
   end function proj_one
 
-  pure function proj_tag(sim, group, particle)
+  pure function proj_tag1(sim, group, particle)
     type(particle_sim), intent(in) :: sim
     integer, intent(in) :: group
     class(particle_base), intent(in) :: particle
-    real*8 :: proj_tag
-    if(particle%tag .eq. 3) then
-      proj_tag = 1.d0
+    real*8 :: proj_tag1
+    if(particle%tag .eq. 1) then
+      proj_tag1 = 1.d0
     else
-      proj_tag = 0.d0
+      proj_tag1 = 0.d0
     end if
-  end function proj_tag
+  end function proj_tag1
+
+  pure function proj_tag2(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_tag2
+    if(particle%tag .eq. 2) then
+      proj_tag2 = 1.d0
+    else
+      proj_tag2 = 0.d0
+    end if
+  end function proj_tag2
+
+  pure function proj_tag3(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_tag3
+    if(particle%tag .eq. 3) then
+      proj_tag3 = 1.d0
+    else
+      proj_tag3 = 0.d0
+    end if
+  end function proj_tag3
+
+  pure function proj_tag5(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_tag5
+    if(particle%tag .eq. 5) then
+      proj_tag5 = 1.d0
+    else
+      proj_tag5 = 0.d0
+    end if
+  end function proj_tag5
+
+  pure function proj_tag6(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_tag6
+    if(particle%tag .eq. 6) then
+      proj_tag6 = 1.d0
+    else
+      proj_tag6 = 0.d0
+    end if
+  end function proj_tag6
+
+  pure function proj_tag7(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_tag7
+    if(particle%tag .eq. 7) then
+      proj_tag7 = 1.d0
+    else
+      proj_tag7 = 0.d0
+    end if
+  end function proj_tag7
 
   pure function proj_R(sim,group,particle)
     type(particle_sim), intent(in) :: sim

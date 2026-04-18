@@ -1034,6 +1034,7 @@ module phys_module
 
     logical           :: use_thompson
     logical           :: use_Yn_func
+    logical           :: use_new_thompson
 
     logical           :: write_vtk
   end type type_wall_act_config

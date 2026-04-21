@@ -21,7 +21,7 @@ use mod_interp
 use constants, only : ATOMIC_MASS_UNIT
 
 ! Z.Liang: For some specific diagnostics related to particle-wall interaction.
-use mod_particle_wall_interaction, only:chemical_sputtering_yield, fluid_sputtering_yield
+use mod_particle_wall_interaction, only:chemical_sputtering_yield, physical_sputtering_yield
 use mod_eckstein_y_ye
 use mod_atomic_elements
 
@@ -581,7 +581,7 @@ do i=1, n_points
   cos_alpha = abs(dot_product(vectors(index,:,4),B_hat))
   Gamma_d = prf2(index) * abs(prf4(index)) * norm2(vectors(index,:,1)) * cos_alpha + prf2(index)  * c_s * min_sheath_angle * PI/180.d0
 
-  physical_coff = fluid_sputtering_yield(eck_spt_yield, prf3(index),-2,0.d0)
+  physical_coff = physical_sputtering_yield(eck_spt_yield, prf3(index),-2,0.d0)
   chemical_coff = chemical_sputtering_yield(500 * K_BOLTZ/EL_CHG, 5*prf3(index), Gamma_d)
 
   write(22,'(12e16.8,8ES16.5)') distance, Rprf(index),Zprf(index),angle,prf7(index),prf6(index), &

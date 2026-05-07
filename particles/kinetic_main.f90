@@ -99,7 +99,7 @@ integer :: n_particles_local
 
 character(len=100) :: header_line
 
-real*8 :: ran(1)
+real*8 :: E_out_1, E_out_2, E_out_3, E_out_4, E_out_5, E_out_6
 
 !***********************************************************************
 !*                            initialisation                            *
@@ -227,6 +227,8 @@ project_density = new_projection(sim%fields%node_list, sim%fields%element_list, 
                      filter    = filter_perp,    filter_hyper    = filter_hyper,    filter_parallel    = filter_par, &
                      filter_n0 = filter_perp_n0, filter_hyper_n0 = filter_hyper_n0, filter_parallel_n0 = filter_par_n0, &
                      f=[proj_f(proj_tag2, group = 2), proj_f(proj_tag3, group = 2), proj_f(proj_tag7, group = 2), proj_f(proj_one, group = 2), &
+                        proj_f(proj_q0, group = 2), proj_f(proj_q1, group = 2), proj_f(proj_q2, group = 2), proj_f(proj_q3, group = 2),        &
+                        proj_f(proj_q4, group = 2), proj_f(proj_q5, group = 2), proj_f(proj_q6, group = 2),                                   &
                         proj_f(proj_tag1, group = 1), proj_f(proj_tag5, group = 1), proj_f(proj_tag6, group = 1), proj_f(proj_one, group = 1)], &
                      fractional_digits = 9,  to_vtk=.TRUE., to_h5=.FALSE., basename='density', nsub=5, do_dirichlet=apply_dirichlet_proj)
 
@@ -269,22 +271,19 @@ do while (.not. sim%stop_now)
   endif
 
 
-! if(sim%my_id .eq. 0) then
-!   write(6,*) 'llzz--abc', size(wall_act_groups,1), 500 *  K_BOLTZ/EL_CHG
-!   write(6,*) wall_act_groups(3)%wall_actions(2)%name
-!   write(6,*) wall_act_groups(3)%wall_actions(2)%yield%lambda
-!   wall_act_groups(3)%wall_actions(2)%E_dist%E_b = 8.0
-!   wall_act_groups(3)%wall_actions(2)%E_dist%n = 3
+!if(sim%my_id .eq. 0) then
 !
-!   do i=1, 1000
-!     call rng(1)%next(ran)
-!     write(6,*) 'llzz-aa', i, ran(1)*200, physical_sputtering_yield(wall_act_groups(3)%wall_actions(2)%yield, ran(1)*200, 4, 0.d0)
-!     write(6,*) 'llzz-bb', i, ran(1)*200, wall_act_groups(3)%wall_actions(2)%yield%interp(ran(1)*200, 0.d0)
-!     write(6,*) 'llzz-cc', i, ran(1)*200, wall_act_groups(3)%wall_actions(2)%energy%interp(ran(1)*200, 0.d0)
-!     write(6,*) 'llzz-dd', i, ran(1), sample_dist(wall_act_groups(3)%wall_actions(2)%E_dist, ran(1)) 
-!   end do
+!  do i=1, 10000
+!    call Thompson_new(5.d0,  wall_act_groups(1)%wall_actions(1)%rng(1), 7.42d0, E_out_1)
+!    call Thompson_new(10.d0, wall_act_groups(1)%wall_actions(1)%rng(1), 7.42d0, E_out_2)
+!    call Thompson_new(15.d0, wall_act_groups(1)%wall_actions(1)%rng(1), 7.42d0, E_out_3)
+!    call Thompson_new(20.d0, wall_act_groups(1)%wall_actions(1)%rng(1), 7.42d0, E_out_4)
+!    call Thompson_new(30.d0, wall_act_groups(1)%wall_actions(1)%rng(1), 7.42d0, E_out_5)
+!    call Thompson_new(50.d0, wall_act_groups(1)%wall_actions(1)%rng(1), 7.42d0, E_out_6)
+!    write(6,'(A, 6E12.5)') 'llzz-aa',  E_out_1, E_out_2, E_out_3, E_out_4, E_out_5, E_out_6
+!  end do
 !
-! end if
+!end if
 
   ! --- Interactions that happen on the fluid timestep (creating kinetic particles)
 

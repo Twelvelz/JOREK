@@ -11,6 +11,7 @@ private
 
 public proj_f, proj_f_interface, proj_one, proj_q, proj_vR, proj_vZ, proj_vPhi, proj_Ekin, proj_Ekin_keV, proj_jR, proj_jZ, proj_jPhi
 public proj_R, proj_min_rad, proj_Z,proj_v,proj_vpar,proj_mu,proj_pow, proj_tag1, proj_tag2, proj_tag3, proj_tag5, proj_tag6, proj_tag7
+public proj_q0, proj_q1, proj_q2, proj_q3, proj_q4, proj_q5, proj_q6
 
 interface
   function proj_f_interface(sim, group, particle)
@@ -42,6 +43,119 @@ contains
     real*8 :: proj_one
     proj_one = 1.d0
   end function proj_one
+
+  pure function proj_q0(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_q0
+
+    select type (p => particle)
+    type is (particle_kinetic_leapfrog)
+      if(p%q .eq. 0) then
+        proj_q0 = 1.d0
+      else
+        proj_q0 = 0.d0
+      end if
+    end select
+  end function proj_q0
+
+  pure function proj_q1(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_q1
+
+    select type (p => particle)
+    type is (particle_kinetic_leapfrog)
+      if(p%q .eq. 1) then
+        proj_q1 = 1.d0
+      else
+        proj_q1 = 0.d0
+      end if
+    end select
+  end function proj_q1
+
+  pure function proj_q2(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_q2
+
+    select type (p => particle)
+    type is (particle_kinetic_leapfrog)
+      if(p%q .eq. 2) then
+        proj_q2 = 1.d0
+      else
+        proj_q2 = 0.d0
+      end if
+    end select
+  end function proj_q2
+
+  pure function proj_q3(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_q3
+
+    select type (p => particle)
+    type is (particle_kinetic_leapfrog)
+      if(p%q .eq. 3) then
+        proj_q3 = 1.d0
+      else
+        proj_q3 = 0.d0
+      end if
+    end select
+  end function proj_q3
+
+  pure function proj_q4(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_q4
+
+    select type (p => particle)
+    type is (particle_kinetic_leapfrog)
+      if(p%q .eq. 4) then
+        proj_q4 = 1.d0
+      else
+        proj_q4 = 0.d0
+      end if
+    end select
+  end function proj_q4
+
+  pure function proj_q5(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_q5
+
+    select type (p => particle)
+    type is (particle_kinetic_leapfrog)
+      if(p%q .eq. 5) then
+        proj_q5 = 1.d0
+      else
+        proj_q5 = 0.d0
+      end if
+    end select
+  end function proj_q5
+
+  pure function proj_q6(sim, group, particle)
+    type(particle_sim), intent(in) :: sim
+    integer, intent(in) :: group
+    class(particle_base), intent(in) :: particle
+    real*8 :: proj_q6
+
+    select type (p => particle)
+    type is (particle_kinetic_leapfrog)
+      if(p%q .eq. 6) then
+        proj_q6 = 1.d0
+      else
+        proj_q6 = 0.d0
+      end if
+    end select
+  end function proj_q6
+  
 
   pure function proj_tag1(sim, group, particle)
     type(particle_sim), intent(in) :: sim

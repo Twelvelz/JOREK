@@ -70,7 +70,7 @@ module mod_particle_wall_interaction
   implicit none
    
   private
-  public :: wall_act_group, wall_actions_from_config, gcd_wall_acts, chemical_sputtering_yield, physical_sputtering_yield
+  public :: wall_act_group, wall_actions_from_config, gcd_wall_acts, chemical_sputtering_yield, physical_sputtering_yield, Thompson_new
 
   ! action containing the wall interaction information for one origin species to one target species
   type, extends(io_action) :: wall_action
@@ -1866,7 +1866,7 @@ subroutine project_sputter_vars_on_edge(this, sim)
       case("wall recomb")
         yield = 1.d0 !<assuming complete wall saturation
       case("physical sputter")
-        yield = physical_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 0.d0)
+        yield = physical_sputtering_yield(this%yield, T_e * K_BOLTZ/EL_CHG, q, 60.d0)
       case("chemical sputter")
         yield = chemical_sputtering_yield(500 * K_BOLTZ/EL_CHG, 5*T_e * K_BOLTZ/EL_CHG, Gamma_d)
       case default

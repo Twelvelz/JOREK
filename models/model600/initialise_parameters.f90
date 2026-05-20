@@ -75,6 +75,8 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 FF_0,  FF_1,  FF_coef,                              &
                 ZK_par, ZK_i_par, ZK_e_par, ZK_par_max,             &
                 ZK_perp, ZK_i_perp, ZK_e_perp, D_par, D_perp,       &
+                ZK_perp_private, ZK_perp_private_width, ZK_perp_private_zshift, &
+                D_perp_private, D_perp_private_width, D_perp_private_zshift,    &
                 heatsource_e, heatsource_i, heatsource,             &
                 particlesource, tauIC, Wdia,                        &
                 eta_num, visco_num, visco_par_num,                  &
@@ -88,6 +90,12 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 ZK_i_perp_num_tanh_psin, ZK_i_perp_num_tanh_sig,    &
                 ZK_e_perp_num, ZK_e_perp_num_tanh,                  &
                 ZK_e_perp_num_tanh_psin, ZK_e_perp_num_tanh_sig,    &
+                enhance_private_Xdep, enhance_private_Zstart,       & 
+                visco_private, visco_private_zshift, visco_private_width,       &
+                eta_private, eta_private_zshift, eta_private_width,             &     
+                visco_num_private, visco_num_private_zshift,                &
+                visco_num_private_width,                                &
+                eta_num_private, eta_num_private_zshift, eta_num_private_width, & 
                 pellet_amplitude, pellet_R, pellet_Z, pellet_phi,   &
                 pellet_radius, pellet_sig, pellet_length,           &
                 pellet_psi, pellet_delta_psi, pellet_density,       &
@@ -129,6 +137,10 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 heatsource_gauss_i_psin, heatsource_gauss_i_sig,    &
                 heatsource_gauss_e_psin, heatsource_gauss_e_sig,    &
                 particlesource_gauss_psin, particlesource_gauss_sig,&
+                particlesource_private, particlesource_private_zshift, &
+                particlesource_private_width,                       &
+                heatsource_private, heatsource_private_zshift,      &
+                heatsource_private_width,                           &
                 neutral_line_source,                                &
                 neutral_line_R_start, neutral_line_Z_start,         &
                 neutral_line_R_end,   neutral_line_Z_end,           &

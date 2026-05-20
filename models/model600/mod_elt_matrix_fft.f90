@@ -1125,7 +1125,13 @@ do i=1,n_vertex_max
           call resistivity(eta, T_or_Te, T_or_Te_corr, T_max_eta, T_or_Te_0, Z_eff, lnA, eta_T, & 
                            dZ_eff_dT, dZ_eff_dr0, dZ_eff_drimp0, dr0_corr_dn, drimp0_corr_dn,             & 
                            deta_dT, d2eta_d2T, deta_dr0, deta_drimp0,                                     &
-                           dlnA_dT, d2lnA_dT2, dlnA_dr0, dlnA_drimp0)           
+                           dlnA_dT, d2lnA_dT2, dlnA_dr0, dlnA_drimp0) 
+          
+          if(enhance_private_Xdep) then 
+            enhance_private_Zstart = Z_xpoint(1)
+          end if
+
+          eta_T = eta_T + eta_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + eta_private_zshift)/eta_private_width))    
 
           ! --- Eta ohmic
           call resistivity(eta_ohmic, T_or_Te, T_or_Te_corr, T_max_eta_ohm, T_or_Te_0, Z_eff, lnA, eta_T_ohm,  &
@@ -1144,16 +1150,22 @@ do i=1,n_vertex_max
           endif
           call viscosity(visco,         T_or_Te, T_or_Te_corr,T_or_Te_0, visco_T,         dvisco_dT,         d2visco_dT2        )
           call viscosity(visco_heating, T_or_Te, T_or_Te_corr,T_or_Te_0, visco_T_heating, dvisco_dT_heating, d2visco_dT2_heating)
+          
+          visco_T = visco_T + visco_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + visco_private_zshift)/visco_private_width))
+          visco_par = visco_par + visco_par_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + visco_par_private_zshift)/visco_par_private_width))
 
           ! --- Normalized poloidal flux
           psi_norm = get_psi_n( ps0, y_g(ms,mt))
           
           ! --- Hyper-resistivity
           call hyper_resistivity(T_or_Te, T_or_Te_corr, T_or_Te_0, psi_norm, eta_num_T, deta_num_dT) 
+          eta_num_T = eta_num_T + eta_num_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + eta_num_private_zshift)/eta_num_private_width))
           
           ! --- Hyper-viscosity
           call hyper_viscosity(T_or_Te, T_or_Te_corr, T_or_Te_0, visco_num_T, dvisco_num_dT) 
-
+          visco_num_T = visco_num_T + visco_num_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart+ visco_num_private_zshift)/visco_num_private_width))
+          visco_par_num = visco_par_num + visco_par_num_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + visco_par_num_private_zshift)/visco_par_num_private_width))
+          
           ! --- Diamagnetic viscosity
           if (Wdia) then
             W_dia = + tauIC*2. /r0_corr    * (Pi0_xx + Pi0_x/bigR + Pi0_yy) &
@@ -1293,6 +1305,11 @@ do i=1,n_vertex_max
               endif
             end if
           endif ! (with_TiTe)
+
+          if (with_TiTe .eq. .false.) then 
+            ZK_prof = ZK_prof + ZK_perp_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + ZK_perp_private_zshift)/ZK_perp_private_width))
+            D_prof  = D_prof +  D_perp_private  * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + D_perp_private_zshift)/D_perp_private_width))
+          endif
 
           ! --- Parallel momentum source
           Vt0   = V_source(ms,mt)

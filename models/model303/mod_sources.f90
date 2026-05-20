@@ -40,9 +40,15 @@ if (xpoint2) then
   endif
 endif
 
+if(enhance_private_Xdep) then 
+  enhance_private_Zstart = Z_xpoint(1)
+end if
+
 particle_source = particlesource * (0.5d0 - 0.5d0*tanh((psi_n - particlesource_psin)/particlesource_sig)) &
-     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig))
-heat_source     = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) 
+     + edgeparticlesource * (0.5d0 + 0.5d0*tanh((psi_n - edgeparticlesource_psin)/edgeparticlesource_sig)) &
+     + particlesource_private * (0.5d0 - 0.5d0*tanh((Z - enhance_private_Zstart+particlesource_private_zshift)/particlesource_private_width))
+heat_source     = heatsource     * (0.5d0 - 0.5d0*tanh((psi_n - heatsource_psin    )/heatsource_sig    )) &
+     + heatsource_private * (0.5d0 - 0.5d0*tanh((Z - enhance_private_Zstart+heatsource_private_zshift)/heatsource_private_width))
 
 do i = 1, 5
   heat_source = heat_source  + heatsource_gauss(i) *                                                      &

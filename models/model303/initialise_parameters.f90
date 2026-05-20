@@ -60,9 +60,17 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 T_0,   T_1,   T_coef,                               &
                 FF_0,  FF_1,  FF_coef,                              &
                 ZK_par, ZK_par_max, ZK_perp, D_par, D_perp,         &
+                ZK_perp_private, ZK_perp_private_width, ZK_perp_private_zshift, &
+                D_perp_private, D_perp_private_width, D_perp_private_zshift,    &
                 particlesource, heatsource, tauIC, Wdia,            &
                 eta_num, visco_num, visco_par_num, D_perp_num,      &
                 ZK_perp_num,                                        &
+                enhance_private_Xdep, enhance_private_Zstart,       & 
+                visco_private, visco_private_zshift, visco_private_width,       &
+                eta_private, eta_private_zshift, eta_private_width,             &     
+                visco_num_private, visco_num_private_zshift,                &
+                visco_num_private_width,                                &
+                eta_num_private, eta_num_private_zshift, eta_num_private_width, & 
                 pellet_amplitude, pellet_R, pellet_Z, pellet_phi,   &
                 pellet_radius, pellet_sig, pellet_length,           &
                 pellet_psi, pellet_delta_psi, pellet_density,       &
@@ -99,6 +107,10 @@ namelist /in1/  tstep, nstep, tstep_n, nstep_n,                     &
                 particlesource_gauss, heatsource_gauss,             &
                 heatsource_gauss_psin, heatsource_gauss_sig,        &
                 particlesource_gauss_psin, particlesource_gauss_sig,&
+                particlesource_private, particlesource_private_zshift, &
+                particlesource_private_width,                       &
+                heatsource_private, heatsource_private_zshift,      &
+                heatsource_private_width,                           &
                 produce_live_data, gmres, gmres_max_iter,           &
                 gmres_m, gmres_4, gmres_tol, iter_precon,           &
                 tgnum,  pastix_pivot, max_steps_noUpdate,           &

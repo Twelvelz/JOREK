@@ -45,6 +45,10 @@ subroutine preset_parameters
   
   TiTe_ratio    = 0.5d0
 
+  eta_private = 0.d0
+  eta_private_zshift = 0.d0
+  eta_private_width = 1.d2
+
   visco = 1.d-5
   T_max_visco   = 1.d99
   visco_par = 1.d-5
@@ -52,6 +56,13 @@ subroutine preset_parameters
   visco_heating     = 0.d0
   visco_par_heating = 0.d0
   visco_old_setup   = .false.
+
+  visco_private = 0.d0
+  visco_private_zshift = 0.d0
+  visco_private_width = 1.d2
+  visco_par_private = 0.d0
+  visco_par_private_zshift = 0.d0
+  visco_par_private_width = 1.d2
   
   central_density = 1.d0            ! the central density in units 10^20 m^-3
   central_mass    = 2.01410177811d0 ! the central average mass (atomic mass of deuterium, including electron)
@@ -242,6 +253,17 @@ subroutine preset_parameters
   D_perp_imp(1:5)  = (/ 1.d-5, 0.d0, 0.d0, 99.d0, 99.d0 /)
   D_par_imp        = 0.d0
 
+  enhance_private_Xdep = .true.
+  enhance_private_Zstart = 0.d0
+
+  ZK_perp_private = 0.d0
+  ZK_perp_private_zshift = 0.d0
+  ZK_perp_private_width = 1.d2
+
+  D_perp_private = 0.d0
+  D_perp_private_zshift = 0.d0
+  D_perp_private_width = 1.d2
+
   D_prof_neg         = 1.d-5
   D_prof_neg_thresh  = 0.d0 ! default is zero for keeping the old behavior
   D_prof_imp_neg_thresh  = -1.d3 ! disabled by default to avoid convergence issues
@@ -297,6 +319,18 @@ subroutine preset_parameters
   ZK_e_perp_num      = 0.d0
   ZK_e_perp_num_tanh = 0.d0; ZK_e_perp_num_tanh_psin = 3.d-1; ZK_e_perp_num_tanh_sig = 1.d-1
   Dn_perp_num        = 0.d0
+
+  eta_num_private = 0.d0 
+  eta_num_private_zshift = 0.d0
+  eta_num_private_width = 1.d2
+
+  visco_num_private = 0.d0 
+  visco_num_private_zshift = 0.d0
+  visco_num_private_width = 1.d2
+
+  visco_par_num_private = 0.d0 
+  visco_par_num_private_zshift = 0.d0
+  visco_par_num_private_width = 1.d2
 
   use_sc = .false.
   visco_sc_num     = 0.d0
@@ -355,6 +389,14 @@ subroutine preset_parameters
   particlesource_gauss      = 0.d0
   particlesource_gauss_psin = 0.9d0
   particlesource_gauss_sig  = 0.1d0
+
+  particlesource_private    = 0.d0
+  particlesource_private_zshift = 0.d0 
+  particlesource_private_width  = 1.d2
+  heatsource_private    = 0.d0
+  heatsource_private_zshift = 0.d0 
+  heatsource_private_width  = 1.d2
+
   neutral_line_source       = 0.d0
   neutral_line_R_start      = 1.d20
   neutral_line_Z_start      = 1.d20

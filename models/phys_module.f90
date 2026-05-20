@@ -284,6 +284,11 @@ module phys_module
   real*8  :: edgeparticlesource            !< Edge particle source amplitude
   real*8  :: edgeparticlesource_psin       !< Position around which the edge particle source is located
   real*8  :: edgeparticlesource_sig        !< Width over which edge particle source extends
+
+  real*8  :: particlesource_private        !< addtional particle source below xpoint
+  real*8  :: particlesource_private_zshift
+  real*8  :: particlesource_private_width
+
   real*8  :: neutral_line_source(10)       !< neutral inflow source
   real*8  :: neutral_line_R_start(10)      !< neutral inflow source (starting point of line source)
   real*8  :: neutral_line_Z_start(10)      !< neutral inflow source
@@ -307,6 +312,11 @@ module phys_module
   real*8  :: heatsource_gauss_e_sig(5)     !< Width over which electrons Gaussian source extends
   real*8  :: heatsource_gauss_i_psin(5)    !< Position around which ions Gaussian source is located
   real*8  :: heatsource_gauss_i_sig(5)     !< Width over which ions Gaussian source extends
+
+  real*8  :: heatsource_private        !< addtional heat source below xpoint
+  real*8  :: heatsource_private_zshift
+  real*8  :: heatsource_private_width
+
   real*8  :: constant_imp_source           !< Adds a constant impurity source
   
   !> @name Hyper-resistivity, -viscosity and -diffusivities
@@ -320,6 +330,21 @@ module phys_module
   logical :: maintain_profiles             !< Add artificial sources to maintain initial rho and T profiles
                                            !! (diffusion acts on deviation from initial profiles)
 					   !! at present only implemented for stellarator model 183
+
+  logical :: enhance_private_Xdep
+  real*8  :: enhance_private_Zstart
+
+  real*8  :: ZK_perp_private, ZK_perp_private_zshift, ZK_perp_private_width
+  real*8  :: D_perp_private, D_perp_private_zshift, D_perp_private_width
+
+  !> @name artificially extra eta and visco below the xpoint (for LSN) 
+  !> --(negative zshift means shift upwards, positive zshift means shift downwards)
+  real*8  :: eta_private, eta_private_zshift, eta_private_width,                      &
+             visco_private, visco_private_zshift, visco_private_width,                &
+             visco_par_private, visco_par_private_zshift, visco_par_private_width,    &
+             eta_num_private, eta_num_private_zshift, eta_num_private_width,          &
+             visco_num_private, visco_num_private_zshift, visco_num_private_width,    &
+             visco_par_num_private, visco_par_num_private_zshift, visco_par_num_private_width
 
   !> @name Shock-capturing terms
   logical :: use_sc  !< Use shock-capturing stabilization

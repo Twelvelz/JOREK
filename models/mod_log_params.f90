@@ -239,6 +239,9 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,REAL_FMT) 'eta                   ', eta
   write(*,REAL_FMT) 'eta_ohmic             ', eta_ohmic
   write(*,REAL_FMT) 'eta_Spitzer (not input parameter; printed for reference in JOREK units)', eta_Spitzer
+  write(*,REAL_FMT) 'eta_private           ', eta_private
+  write(*,REAL_FMT) 'eta_private_zshift    ', eta_private_zshift
+  write(*,REAL_FMT) 'eta_private_width     ', eta_private_width
   write(*,REAL_FMT) 'lnA   (not input parameter; initial Coulomb logarithm at plasma center)', lnA_center
   write(*,REAL_FMT) 'T_max_eta             ', T_max_eta
   write(*,REAL_FMT) 'T_max_eta_ohm         ', T_max_eta_ohm  
@@ -246,8 +249,14 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,LOGI_FMT) 'visco_T_dependent     ', visco_T_dependent
   write(*,LOGI_FMT) 'visco_old_setup       ', visco_old_setup
   write(*,REAL_FMT) 'visco                 ', visco
+  write(*,REAL_FMT) 'visco_private         ', visco_private
+  write(*,REAL_FMT) 'visco_private_zshift  ', visco_private_zshift
+  write(*,REAL_FMT) 'visco_private_width   ', visco_private_width
   write(*,REAL_FMT) 'visco_heating         ', visco_heating
   write(*,REAL_FMT) 'visco_par             ', visco_par
+  write(*,REAL_FMT) 'visco_par_private     ', visco_par_private
+  write(*,REAL_FMT) 'visco_par_private_zshift   ', visco_par_private_zshift
+  write(*,REAL_FMT) 'visco_par_private_width    ', visco_par_private_width
   write(*,REAL_FMT) 'visco_par_par         ', visco_par_par
   write(*,REAL_FMT) 'visco_par_heating     ', visco_par_heating
   write(*,LOGI_FMT) 'restart               ', restart
@@ -502,6 +511,18 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
     else
       write(*,CHAR_FMT) 'ZK_perp_file          ', trim(ZK_perp_file)
     end if
+
+    write(*,LOGI_FMT) 'enhance_private_Xdep    ', enhance_private_Xdep
+    write(*,REAL_FMT) 'enhance_private_Zstart  ', enhance_private_Zstart
+
+    write(*,REAL_FMT) 'ZK_perp_private         ', ZK_perp_private
+    write(*,REAL_FMT) 'ZK_perp_private_zshift  ', ZK_perp_private_zshift
+    write(*,REAL_FMT) 'ZK_perp_private_width   ', ZK_perp_private_width
+
+    write(*,REAL_FMT) 'D_perp_private          ', D_perp_private
+    write(*,REAL_FMT) 'D_perp_private_zshift   ', D_perp_private_zshift
+    write(*,REAL_FMT) 'D_perp_private_width    ', D_perp_private_width
+
     write(*,REAL_FMT) 'ZK_par                ', ZK_par
     write(*,REAL_FMT) 'ZK_par_max            ', ZK_par_max
     write(*,REAL_FMT) 'ZK_par_SpitzerHaerm (not input parameter; printed for reference in JOREK units)', ZK_par_SpitzerHaerm
@@ -536,6 +557,12 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,REAL_FMT) 'particlesource_gauss  ', particlesource_gauss
   write(*,REAL_FMT) 'particlesource_gauss_psin', particlesource_gauss_psin
   write(*,REAL_FMT) 'particlesource_gauss_sig ', particlesource_gauss_sig
+  write(*,REAL_FMT) 'particlesource_private  ',      particlesource_private
+  write(*,REAL_FMT) 'particlesource_private_zshift', particlesource_private_zshift
+  write(*,REAL_FMT) 'particlesource_private_width ', particlesource_private_width
+  write(*,REAL_FMT) 'heatsource_private  ',      heatsource_private
+  write(*,REAL_FMT) 'heatsource_private_zshift', heatsource_private_zshift
+  write(*,REAL_FMT) 'heatsource_private_width ', heatsource_private_width
   write(*,REAL_FMT) 'gamma                 ', gamma
   write(*,REAL_FMT) 'tauIC                 ', tauIC
   write(*,REAL_FMT) 'tauIC_nominal (not input parameter; printed for reference in JOREK units)', tauIC_nominal
@@ -552,6 +579,14 @@ write(*,'(1x,a)',advance='no') ' USE_CATALYST : '
   write(*,REAL_FMT) 'D_perp_num_tanh_psin  ', D_perp_num_tanh_psin
   write(*,REAL_FMT) 'D_perp_num_tanh_sig   ', D_perp_num_tanh_sig
   write(*,REAL_FMT) 'Dn_perp_num           ', Dn_perp_num
+
+  write(*,REAL_FMT) 'eta_num_private        ', eta_num_private
+  write(*,REAL_FMT) 'eta_num_private_zshift ', eta_num_private_zshift
+  write(*,REAL_FMT) 'eta_num_private_width  ', eta_num_private_width
+
+  write(*,REAL_FMT) 'visco_num_private         ', visco_num_private
+  write(*,REAL_FMT) 'visco_num_private_zshift  ', visco_num_private_zshift
+  write(*,REAL_FMT) 'visco_num_private_width   ', visco_num_private_width
 
   write(*,LOGI_FMT) 'use_sc                ', use_sc
   write(*,REAL_FMT) 'visco_sc_num          ', visco_sc_num

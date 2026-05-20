@@ -621,6 +621,12 @@ do i=1,n_vertex_max
               d2eta_d2T = 0.d0
           end if
 
+          if(enhance_private_Xdep) then 
+            enhance_private_Zstart = Z_xpoint(1)
+          end if
+
+          eta_T = eta_T + eta_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + eta_private_zshift)/eta_private_width))
+
           ! --- Eta for ohmic heating
           if ( eta_T_dependent .and. corr_neg_temp1(T0) <= T_max_eta_ohm) then
             eta_T_ohm     = eta_ohmic   * (corr_neg_temp1(T0)/T_0)**(-1.5d0)
@@ -648,6 +654,9 @@ do i=1,n_vertex_max
             dvisco_dT   = 0.d0
             d2visco_dT2 = 0.d0
           end if
+
+          visco_T = visco_T + visco_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + visco_private_zshift)/visco_private_width))
+          visco_par = visco_par + visco_par_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + visco_par_private_zshift)/visco_par_private_width))
 
           ! --- Temperature dependent parallel heat diffusivity
           if ( ZKpar_T_dependent ) then
@@ -688,6 +697,8 @@ do i=1,n_vertex_max
              deta_num_dT = 0.
           end if
 
+          eta_num_T = eta_num_T + eta_num_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + eta_num_private_zshift)/eta_num_private_width))
+
           ! --- Same for the hyper-viscosity.
           if ( visco_num_T_dependent .and. T0_corr <= T_max_eta) then
              visco_num_T = visco_num * (T0_corr/T_0)**(-1.5d0)
@@ -699,6 +710,9 @@ do i=1,n_vertex_max
              visco_num_T = visco_num
              dvisco_num_dT = 0.
           end if
+
+          visco_num_T = visco_num_T + visco_num_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart+ visco_num_private_zshift)/visco_num_private_width))
+          visco_par_num = visco_par_num + visco_par_num_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + visco_par_num_private_zshift)/visco_par_num_private_width))
 
           psi_norm = get_psi_n( ps0, y_g(ms,mt))
 
@@ -755,6 +769,9 @@ do i=1,n_vertex_max
               ZK_prof = ZK_prof_neg
             endif
           endif
+
+          ZK_prof = ZK_prof + ZK_perp_private * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + ZK_perp_private_zshift)/ZK_perp_private_width))
+          D_prof  = D_prof +  D_perp_private  * (0.5-0.5*tanh((y_g(ms,mt) - enhance_private_Zstart + D_perp_private_zshift)/D_perp_private_width))
 
           phi       = 2.d0*PI*float(mp-1)/float(n_plane) / float(n_period)
           delta_phi = 2.d0*PI/float(n_plane) / float(n_period)

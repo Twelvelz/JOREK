@@ -353,10 +353,10 @@ subroutine construct_wall_action(this, sim, origin_group, config, edge_element_t
   n_poly_R = count(config%poly_R > -1.d98)
   n_poly_Z = count(config%poly_Z > -1.d98)
   if(config%only_in_polygon) then
-    if(this%fluid2part) then
-      write(msg,"(A)") "%only_in_polygon is not implemented for fluid2part wall_actions"
-      call wrong_input(msg, sim%my_id, identifier)
-    end if
+    !if(this%fluid2part) then
+    !  write(msg,"(A)") "%only_in_polygon is not implemented for fluid2part wall_actions"
+    !  call wrong_input(msg, sim%my_id, identifier)
+    !end if
     if(n_poly_R /= n_poly_Z) then
       write(msg,"(A,I5,A,I5,A)") "you must specify an equal amount of %poly_R (",n_poly_R," specified) and %poly_Z values (",n_poly_Z," specified)"
       call wrong_input(msg, sim%my_id, identifier)
@@ -1771,6 +1771,7 @@ end function chemical_sputtering_yield
 subroutine project_sputter_vars_on_edge(this, sim)
   use mod_atomic_elements, only: atomic_weights
   use phys_module, only: central_mass, xpoint, xcase, min_sheath_angle, gamma
+  use mod_polygon
   
   type(wall_action),  intent(inout) :: this
   type(particle_sim), intent(in)    :: sim
@@ -1908,6 +1909,12 @@ subroutine project_sputter_vars_on_edge(this, sim)
         this%wall_projection%patch(i_patch)%scalars(i, n_project_general+7) + &
           Gamma_d * this%delta_t * yield
         !end associate
+      end if
+      if(this%only_in_polygon) then
+        if (.not. inside_polygon(size(this%poly_R),this%poly_R,this%poly_Z, real(this%fluid_yield_integral%patch(i_patch)%xyz(1,i),8),real(this%fluid_yield_integral%patch(i_patch)%xyz(2,i),8))) then !if particle not inside polygon, don't do the action
+          yield = 0.d0
+          cycle
+        end if
       end if
     end do
     !$omp end parallel do
